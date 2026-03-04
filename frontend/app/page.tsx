@@ -229,13 +229,13 @@ export default function DashboardPage() {
 
             {/* ── Air Quality ── */}
             <Link href={`/air?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-air" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                 style={{ background: "#06b6d415", color: "#06b6d4" }}>🌬</div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-end gap-1" style={{ height: 28 }}>
                 {[50, 35, 65, 45, 55, 30, 70].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-sm"
-                    style={{ height: h / 5, background: h < 40 ? "rgba(34,197,94,0.5)" : h < 60 ? "rgba(234,179,8,0.5)" : "rgba(239,68,68,0.5)" }} />
+                  <div key={i} className="flex-1 rounded-sm air-bar"
+                    style={{ height: h / 4, background: h < 40 ? "rgba(34,197,94,0.6)" : h < 60 ? "rgba(234,179,8,0.6)" : "rgba(239,68,68,0.6)", "--d": `${i * 0.04}s` } as React.CSSProperties} />
                 ))}
               </div>
               <div>
@@ -249,13 +249,13 @@ export default function DashboardPage() {
 
             {/* ── Bikes & Scooters ── */}
             <Link href={`/bikes?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-bikes" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                 style={{ background: "#10b98115", color: "#10b981" }}>🚲</div>
-              <div className="flex items-center justify-center gap-1 py-1">
+              <div className="flex items-center justify-center gap-1.5 py-1">
                 {[0, 1, 2, 3, 4].map(i => (
-                  <div key={i} className="w-2 h-2 rounded-full"
-                    style={{ background: i < 3 ? "#10b981" : "rgba(16,185,129,0.2)" }} />
+                  <div key={i} className="w-2.5 h-2.5 rounded-full bike-dot"
+                    style={{ background: i < 3 ? "#10b981" : "rgba(16,185,129,0.2)", "--d": `${i * 0.07}s` } as React.CSSProperties} />
                 ))}
                 <span className="text-xs ml-1" style={{ color: "#10b981" }}>3/5 bikes</span>
               </div>
@@ -270,12 +270,12 @@ export default function DashboardPage() {
 
             {/* ── Food Trucks ── */}
             <Link href={`/food-trucks?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-food" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                 style={{ background: "#f9731615", color: "#f97316" }}>🚚</div>
-              <div className="flex items-center gap-2 text-lg">
+              <div className="flex items-center gap-2 text-xl">
                 {["🌮", "🍜", "🥙", "🧇"].map((icon, i) => (
-                  <span key={i} style={{ opacity: 0.7 + i * 0.1 }}>{icon}</span>
+                  <span key={i} className="food-icon" style={{ "--d": `${i * 0.08}s` } as React.CSSProperties}>{icon}</span>
                 ))}
               </div>
               <div>
@@ -289,13 +289,13 @@ export default function DashboardPage() {
 
             {/* ── Noise & Vibe ── */}
             <Link href={`/noise?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-noise" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                 style={{ background: "#ec489915", color: "#ec4899" }}>🎵</div>
               <div className="flex items-end gap-0.5" style={{ height: 28 }}>
                 {[30, 55, 45, 75, 60, 80, 50, 40, 65, 35].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-sm"
-                    style={{ height: `${h}%`, background: `rgba(236,72,153,${0.3 + h / 200})` }} />
+                  <div key={i} className="flex-1 rounded-sm noise-bar"
+                    style={{ height: `${h}%`, background: `rgba(236,72,153,${0.3 + h / 200})`, "--d": `${i * 0.07}s` } as React.CSSProperties} />
                 ))}
               </div>
               <div>

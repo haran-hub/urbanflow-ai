@@ -5,6 +5,12 @@ import "leaflet/dist/leaflet.css";
 export const metadata: Metadata = {
   title: "UrbanFlow AI — Smart City Navigation",
   description: "AI-powered predictions for parking, EV charging, transit, and local services. Reduce urban friction and save time.",
+  icons: {
+    icon: "/icon.svg",
+    shortcut: "/icon.svg",
+    apple: "/icon.svg",
+  },
+  themeColor: "#3b82f6",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

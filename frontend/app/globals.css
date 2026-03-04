@@ -186,6 +186,71 @@ html, body {
   animation-delay: var(--d, 0s);
 }
 
+/* Accent border + glow for new categories */
+.explore-air:hover   { border-color: rgba(6,182,212,0.5)   !important; box-shadow: 0 0 24px rgba(6,182,212,0.08); }
+.explore-bikes:hover { border-color: rgba(16,185,129,0.5)  !important; box-shadow: 0 0 24px rgba(16,185,129,0.08); }
+.explore-food:hover  { border-color: rgba(249,115,22,0.5)  !important; box-shadow: 0 0 24px rgba(249,115,22,0.08); }
+.explore-noise:hover { border-color: rgba(236,72,153,0.5)  !important; box-shadow: 0 0 24px rgba(236,72,153,0.08); }
+
+/* Air Quality: AQI bars rise from bottom, staggered */
+@keyframes aqi-rise {
+  from { opacity: 0.2; transform: scaleY(0.15); }
+  to   { opacity: 1;   transform: scaleY(1); }
+}
+.explore-air .air-bar {
+  opacity: 0.25;
+  transform: scaleY(0.15);
+  transform-origin: bottom center;
+}
+.explore-air:hover .air-bar {
+  animation: aqi-rise 0.28s ease forwards;
+  animation-delay: var(--d, 0s);
+}
+
+/* Bikes: dock dots bounce in with spring */
+@keyframes dot-pop {
+  0%   { transform: scale(0);   opacity: 0; }
+  60%  { transform: scale(1.5); opacity: 1; }
+  100% { transform: scale(1);   opacity: 1; }
+}
+.explore-bikes .bike-dot {
+  transform: scale(0);
+  opacity: 0;
+}
+.explore-bikes:hover .bike-dot {
+  animation: dot-pop 0.32s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  animation-delay: var(--d, 0s);
+}
+
+/* Food Trucks: cuisine icons bounce up staggered */
+@keyframes food-bounce {
+  0%   { transform: translateY(10px) scale(0.4); opacity: 0; }
+  65%  { transform: translateY(-4px) scale(1.15); opacity: 1; }
+  100% { transform: translateY(0)    scale(1);    opacity: 1; }
+}
+.explore-food .food-icon {
+  display: inline-block;
+  transform: translateY(10px) scale(0.4);
+  opacity: 0;
+}
+.explore-food:hover .food-icon {
+  animation: food-bounce 0.38s cubic-bezier(0.34,1.56,0.64,1) forwards;
+  animation-delay: var(--d, 0s);
+}
+
+/* Noise & Vibe: equaliser bars dance continuously */
+@keyframes eq-dance {
+  0%, 100% { transform: scaleY(0.35); opacity: 0.45; }
+  50%       { transform: scaleY(1.1);  opacity: 1; filter: brightness(1.4); }
+}
+.explore-noise .noise-bar {
+  transform-origin: bottom center;
+}
+.explore-noise:hover .noise-bar {
+  animation: eq-dance 0.65s ease-in-out infinite alternate;
+  animation-delay: var(--d, 0s);
+}
+
 input, select {
   background: var(--card2);
   border: 1px solid var(--border);
