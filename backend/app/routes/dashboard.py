@@ -14,6 +14,10 @@ from app.models import (
     EVStation, EVSnapshot,
     TransitRoute, TransitSnapshot,
     LocalService, ServiceSnapshot,
+    AirStation, AirSnapshot,
+    BikeStation, BikeSnapshot,
+    FoodTruck, FoodTruckSnapshot,
+    NoiseZone, NoiseSnapshot,
 )
 from app.ai_predictor import generate_urban_plan, find_best_time
 
@@ -82,6 +86,51 @@ async def overview(
             services_avg_wait += snap.estimated_wait_minutes
     services_avg_wait = round(services_avg_wait / services_open) if services_open else 0
 
+    # Air Quality summary
+    air_stations = (await db.execute(select(AirStation).where(AirStation.city == city))).scalars().all()
+    air_aqi_total = 0
+    air_count = 0
+    air_category = "Good"
+    for air_station in air_stations:
+        snap = await _latest_snap(db, AirSnapshot, "station_id", air_station.id)
+        if snap:
+            air_aqi_total += snap.aqi
+            air_count += 1
+            air_category = snap.category
+    air_avg_aqi = round(air_aqi_total / air_count) if air_count else 0
+
+    # Bikes summary
+    bike_stations = (await db.execute(select(BikeStation).where(BikeStation.city == city))).scalars().all()
+    bikes_available = 0
+    for bike_station in bike_stations:
+        snap = await _latest_snap(db, BikeSnapshot, "station_id", bike_station.id)
+        if snap:
+            bikes_available += snap.available_bikes + snap.available_ebikes
+
+    # Food Trucks summary
+    food_trucks = (await db.execute(select(FoodTruck).where(FoodTruck.city == city))).scalars().all()
+    trucks_open = 0
+    for truck in food_trucks:
+        snap = await _latest_snap(db, FoodTruckSnapshot, "truck_id", truck.id)
+        if snap and snap.is_open:
+            trucks_open += 1
+
+    # Noise & Vibe summary
+    noise_zones = (await db.execute(select(NoiseZone).where(NoiseZone.city == city))).scalars().all()
+    noise_vibe_total = 0
+    noise_count = 0
+    hottest_zone = ""
+    hottest_score = -1
+    for noise_zone in noise_zones:
+        snap = await _latest_snap(db, NoiseSnapshot, "zone_id", noise_zone.id)
+        if snap:
+            noise_vibe_total += snap.vibe_score
+            noise_count += 1
+            if snap.vibe_score > hottest_score:
+                hottest_score = snap.vibe_score
+                hottest_zone = noise_zone.name
+    avg_vibe = round(noise_vibe_total / noise_count) if noise_count else 0
+
     now = datetime.utcnow()
     _CITY_TIMEZONES = {
         "San Francisco": "America/Los_Angeles",
@@ -123,6 +172,24 @@ async def overview(
             "total": len(services),
             "open_now": services_open,
             "avg_wait_minutes": services_avg_wait,
+        },
+        "air_quality": {
+            "avg_aqi": air_avg_aqi,
+            "category": air_category,
+            "stations_count": len(air_stations),
+        },
+        "bikes": {
+            "total_available": bikes_available,
+            "stations_count": len(bike_stations),
+        },
+        "food_trucks": {
+            "open_count": trucks_open,
+            "total": len(food_trucks),
+        },
+        "noise_vibe": {
+            "avg_vibe": avg_vibe,
+            "hottest_zone": hottest_zone,
+            "zones_count": len(noise_zones),
         },
     }
 

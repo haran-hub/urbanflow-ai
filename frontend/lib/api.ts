@@ -1,6 +1,7 @@
 import axios from "axios";
 import type {
   DashboardOverview, ParkingZone, EVStation, TransitRoute, LocalService,
+  AirStation, BikeStation, FoodTruck, NoiseZone,
   Prediction, Recommendation, BestTime, UrbanPlan,
 } from "./types";
 
@@ -89,5 +90,41 @@ export async function predictService(service_id: string, arrive_at: string): Pro
 
 export async function recommendService(category: string, lat: number, lng: number, max_wait_minutes: number, city: string): Promise<{ recommendation: Recommendation; options: LocalService[] }> {
   const { data } = await api.get("/api/services/recommend", { params: { category, lat, lng, max_wait_minutes, city } });
+  return data;
+}
+
+// Air Quality
+export async function getAirStations(city: string): Promise<{ stations: AirStation[]; count: number }> {
+  const { data } = await api.get("/api/air/stations", { params: { city } });
+  return data;
+}
+export async function predictAir(station_id: string, arrive_at: string) {
+  const { data } = await api.get(`/api/air/stations/${station_id}/predict`, { params: { arrive_at } });
+  return data;
+}
+
+// Bikes
+export async function getBikeStations(city: string): Promise<{ stations: BikeStation[]; count: number }> {
+  const { data } = await api.get("/api/bikes/stations", { params: { city } });
+  return data;
+}
+export async function recommendBike(lat: number, lng: number, city: string) {
+  const { data } = await api.get("/api/bikes/recommend", { params: { lat, lng, city } });
+  return data;
+}
+
+// Food Trucks
+export async function getFoodTrucks(city: string, cuisine?: string): Promise<{ trucks: FoodTruck[]; count: number }> {
+  const { data } = await api.get("/api/foodtrucks/", { params: { city, ...(cuisine ? { cuisine } : {}) } });
+  return data;
+}
+export async function predictFoodTruck(truck_id: string, arrive_at: string) {
+  const { data } = await api.get(`/api/foodtrucks/${truck_id}/predict`, { params: { arrive_at } });
+  return data;
+}
+
+// Noise
+export async function getNoiseZones(city: string): Promise<{ zones: NoiseZone[]; count: number }> {
+  const { data } = await api.get("/api/noise/zones", { params: { city } });
   return data;
 }

@@ -20,10 +20,16 @@ from app.models import (
     EVStation, EVSnapshot,
     TransitRoute, TransitSnapshot,
     LocalService, ServiceSnapshot,
+    AirStation, AirSnapshot,
+    BikeStation, BikeSnapshot,
+    FoodTruck, FoodTruckSnapshot,
+    NoiseZone, NoiseSnapshot,
 )
 from app.data_engine import (
     generate_parking_occupancy, generate_ev_wait,
     generate_transit_crowd, generate_service_wait,
+    generate_air_quality, generate_bike_availability,
+    generate_food_truck, generate_noise_vibe,
 )
 from app.websocket_manager import manager
 
@@ -242,10 +248,62 @@ async def _update_snapshots():
                 queue_length=queue, is_open=is_open,
             ))
 
+        # ── Air Quality (simulation) ────────────────────────────────────────────
+        air_stations = (await db.execute(select(AirStation))).scalars().all()
+        for air_station in air_stations:
+            aqi, pm25, pm10, o3, pollen_level, uv_index, category = generate_air_quality(
+                {}, _local_now(air_station.city, now)
+            )
+            db.add(AirSnapshot(
+                station_id=air_station.id, timestamp=now,
+                aqi=aqi, pm25=pm25, pm10=pm10, o3=o3,
+                pollen_level=pollen_level, uv_index=uv_index, category=category,
+            ))
+
+        # ── Bike Share (simulation) ─────────────────────────────────────────────
+        bike_stations = (await db.execute(select(BikeStation))).scalars().all()
+        for bike_station in bike_stations:
+            available_bikes, available_ebikes, available_docks, is_renting = generate_bike_availability(
+                {"total_docks": bike_station.total_docks}, _local_now(bike_station.city, now)
+            )
+            db.add(BikeSnapshot(
+                station_id=bike_station.id, timestamp=now,
+                available_bikes=available_bikes,
+                available_ebikes=available_ebikes,
+                available_docks=available_docks,
+                is_renting=is_renting,
+            ))
+
+        # ── Food Trucks (simulation) ────────────────────────────────────────────
+        food_trucks = (await db.execute(select(FoodTruck))).scalars().all()
+        for truck in food_trucks:
+            is_open, wait_minutes, crowd_level = generate_food_truck(
+                {"typical_hours": truck.typical_hours}, _local_now(truck.city, now)
+            )
+            db.add(FoodTruckSnapshot(
+                truck_id=truck.id, timestamp=now,
+                is_open=is_open, wait_minutes=wait_minutes, crowd_level=crowd_level,
+            ))
+
+        # ── Noise & Vibe (simulation) ───────────────────────────────────────────
+        noise_zones = (await db.execute(select(NoiseZone))).scalars().all()
+        for noise_zone in noise_zones:
+            noise_db, vibe_score, crowd_density, vibe_label = generate_noise_vibe(
+                {"zone_type": noise_zone.zone_type}, _local_now(noise_zone.city, now)
+            )
+            db.add(NoiseSnapshot(
+                zone_id=noise_zone.id, timestamp=now,
+                noise_db=noise_db, vibe_score=vibe_score,
+                crowd_density=crowd_density, vibe_label=vibe_label,
+            ))
+
         await db.commit()
 
         # ── Trim old snapshots ─────────────────────────────────────────────────
-        for model in (ParkingSnapshot, EVSnapshot, TransitSnapshot, ServiceSnapshot):
+        for model in (
+            ParkingSnapshot, EVSnapshot, TransitSnapshot, ServiceSnapshot,
+            AirSnapshot, BikeSnapshot, FoodTruckSnapshot, NoiseSnapshot,
+        ):
             await db.execute(delete(model).where(model.timestamp < cutoff))
         await db.commit()
 

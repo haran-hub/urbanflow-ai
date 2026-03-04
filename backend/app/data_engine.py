@@ -11,6 +11,7 @@ Generates realistic occupancy / availability values based on:
 import random
 import math
 from datetime import datetime
+from typing import Optional
 
 
 # ── Helpers ────────────────────────────────────────────────────────────────────
@@ -175,3 +176,138 @@ def generate_service_wait(service: dict, now: datetime | None = None) -> tuple[i
     wait = int(_gaussian_clamp(base_wait, base_wait * 0.2, 0, 120))
     queue = max(0, queue + random.randint(-2, 2))
     return wait, queue, True
+
+
+def generate_air_quality(station: dict, now: Optional[datetime] = None) -> tuple[int, float, float, float, int, float, str]:
+    """Returns (aqi, pm25, pm10, o3, pollen_level, uv_index, category)."""
+    now = now or datetime.utcnow()
+    hour = now.hour
+    month = now.month  # 1-12
+
+    # Base AQI varies by time of day (morning/evening peaks from traffic)
+    traffic_factor = _rush_curve(hour)
+    base_aqi = 30 + traffic_factor * 40
+    aqi = int(_gaussian_clamp(base_aqi, 8, 10, 180))
+
+    pm25 = round(_gaussian_clamp(aqi * 0.25, 3, 1, 60), 1)
+    pm10 = round(_gaussian_clamp(aqi * 0.4, 5, 2, 80), 1)
+    o3 = round(_gaussian_clamp(30 + traffic_factor * 20, 5, 10, 80), 1)
+
+    # Pollen: seasonal (spring + fall peaks) — 0=None 1=Low 2=Mod 3=High 4=VeryHigh
+    spring = math.exp(-0.5 * ((month - 4) / 1.5) ** 2)
+    fall = math.exp(-0.5 * ((month - 9) / 1.5) ** 2)
+    cedar = math.exp(-0.5 * ((month - 1) / 0.8) ** 2)  # Austin cedar fever Jan
+    pollen_raw = (spring + fall) * 3 + cedar * 2
+    pollen_level = min(4, int(_gaussian_clamp(pollen_raw, 0.5, 0, 4)))
+
+    # UV: peaks midday, seasonal, zero at night
+    uv_peak = max(0, math.sin(math.pi * (hour - 6) / 12)) if 6 <= hour <= 18 else 0
+    uv_index = round(_gaussian_clamp(uv_peak * 8, 1, 0, 11), 1)
+
+    # Category
+    if aqi <= 50:
+        category = "Good"
+    elif aqi <= 100:
+        category = "Moderate"
+    elif aqi <= 150:
+        category = "Unhealthy for Sensitive Groups"
+    elif aqi <= 200:
+        category = "Unhealthy"
+    elif aqi <= 300:
+        category = "Very Unhealthy"
+    else:
+        category = "Hazardous"
+
+    return aqi, pm25, pm10, o3, pollen_level, uv_index, category
+
+
+def generate_bike_availability(station: dict, now: Optional[datetime] = None) -> tuple[int, int, int, bool]:
+    """Returns (available_bikes, available_ebikes, available_docks, is_renting)."""
+    now = now or datetime.utcnow()
+    hour = now.hour + now.minute / 60
+    weekday = now.weekday()
+
+    total_docks = station.get("total_docks", 12)
+    demand = _rush_curve(hour) * _weekend_factor(weekday, "transit")
+
+    busy_bikes = round(demand * total_docks * 0.7)
+    busy_bikes = max(0, min(total_docks - 1, busy_bikes + random.randint(-1, 1)))
+    available = total_docks - busy_bikes
+    ebikes = max(0, int(available * 0.4) + random.randint(-1, 1))
+    regular = max(0, available - ebikes)
+    docks = busy_bikes
+
+    return regular, ebikes, docks, True
+
+
+def generate_food_truck(truck: dict, now: Optional[datetime] = None) -> tuple[bool, int, int]:
+    """Returns (is_open, wait_minutes, crowd_level)."""
+    now = now or datetime.utcnow()
+    hour = now.hour
+    weekday = now.weekday()
+
+    typical_hours = truck.get("typical_hours", "11am-9pm").lower()
+
+    # Determine open hours
+    is_open = False
+    if "midnight" in typical_hours or "2am" in typical_hours or "4am" in typical_hours:
+        # Late night (evening/night trucks)
+        is_open = (hour >= 17 or hour < 2)
+    elif "breakfast" in typical_hours or "7am" in typical_hours or "8am" in typical_hours:
+        is_open = (7 <= hour < 15)
+    elif "lunch" in typical_hours or "11am" in typical_hours:
+        is_open = (11 <= hour < 15)
+    else:
+        is_open = (11 <= hour < 21)  # default lunch-dinner
+
+    # Weekend-only handling
+    if "fri" in typical_hours and weekday not in (4, 5, 6):
+        is_open = False
+    if "sat" in typical_hours and weekday != 5:
+        is_open = False
+
+    if not is_open:
+        return False, 0, 0
+
+    demand = _rush_curve(hour) * (0.8 if weekday < 5 else 1.2)
+    crowd = int(_gaussian_clamp(demand * 80, 10, 5, 100))
+    wait = int(_gaussian_clamp(demand * 15, 3, 0, 45))
+    return True, wait, crowd
+
+
+def generate_noise_vibe(zone: dict, now: Optional[datetime] = None) -> tuple[float, int, int, str]:
+    """Returns (noise_db, vibe_score, crowd_density, vibe_label)."""
+    now = now or datetime.utcnow()
+    hour = now.hour + now.minute / 60
+    weekday = now.weekday()  # 0=Mon 6=Sun
+
+    zone_type = zone.get("zone_type", "commercial")
+    is_weekend = weekday >= 4  # Thu-Sun
+
+    if zone_type == "entertainment":
+        # Peaks late night (Thu-Sat 10pm-2am)
+        night = math.exp(-0.5 * ((hour - 23) / 2.5) ** 2)
+        evening = math.exp(-0.5 * ((hour - 20) / 2.0) ** 2)
+        base = (night * 0.9 + evening * 0.6) * (1.5 if is_weekend else 0.7)
+    elif zone_type == "residential":
+        base = _rush_curve(hour) * 0.3 + 0.05
+    else:  # commercial
+        base = _rush_curve(hour) * 0.7 + 0.1
+
+    vibe_raw = _gaussian_clamp(base, 0.1, 0.0, 1.0)
+    noise_db = round(_gaussian_clamp(35 + vibe_raw * 55, 3, 30, 95), 1)
+    vibe_score = int(vibe_raw * 100)
+    crowd_density = int(_gaussian_clamp(vibe_raw * 90, 8, 0, 100))
+
+    if vibe_score < 15:
+        vibe_label = "Quiet"
+    elif vibe_score < 35:
+        vibe_label = "Calm"
+    elif vibe_score < 60:
+        vibe_label = "Lively"
+    elif vibe_score < 80:
+        vibe_label = "Buzzing"
+    else:
+        vibe_label = "Wild"
+
+    return noise_db, vibe_score, crowd_density, vibe_label

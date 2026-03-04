@@ -89,6 +89,52 @@ export interface DashboardOverview {
     open_now: number;
     avg_wait_minutes: number;
   };
+  air_quality?: {
+    avg_aqi: number;
+    category: string;
+    stations_count: number;
+  };
+  bikes?: {
+    total_available: number;
+    stations_count: number;
+  };
+  food_trucks?: {
+    open_count: number;
+    total: number;
+  };
+  noise_vibe?: {
+    avg_vibe: number;
+    hottest_zone: string;
+    zones_count: number;
+  };
+}
+
+export interface AirStation {
+  id: string; name: string; city: string; lat: number; lng: number; address: string;
+  aqi: number; pm25: number; pm10: number; o3: number;
+  pollen_level: number; pollen_label: string; uv_index: number; category: string;
+  health_advisory: string;
+  last_updated: string | null;
+}
+
+export interface BikeStation {
+  id: string; name: string; city: string; lat: number; lng: number; address: string;
+  total_docks: number; network: string; station_type: string;
+  available_bikes: number; available_ebikes: number; available_docks: number;
+  is_renting: boolean; last_updated: string | null;
+}
+
+export interface FoodTruck {
+  id: string; name: string; city: string; lat: number; lng: number; address: string;
+  cuisine: string; typical_hours: string;
+  is_open: boolean; wait_minutes: number; crowd_level: number; wait_label: string;
+  last_updated: string | null;
+}
+
+export interface NoiseZone {
+  id: string; name: string; city: string; lat: number; lng: number; address: string;
+  zone_type: string; noise_db: number; vibe_score: number;
+  crowd_density: number; vibe_label: string; last_updated: string | null;
 }
 
 export interface Prediction {

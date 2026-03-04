@@ -14,7 +14,10 @@ import httpx
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import settings
-from app.models import ParkingZone, EVStation, TransitRoute, LocalService
+from app.models import (
+    ParkingZone, EVStation, TransitRoute, LocalService,
+    AirStation, BikeStation, FoodTruck, NoiseZone,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -260,6 +263,268 @@ out body {limit};
     return results
 
 
+GBFS_FEEDS = {
+    "San Francisco": "https://gbfs.baywheels.com/gbfs/en/",
+    "New York":      "https://gbfs.citibikenyc.com/gbfs/en/",
+    "Austin":        "https://gbfs.bcycle.com/bcycle_austin/",
+}
+
+OPENAQ_URL = "https://api.openaq.org/v2/latest"
+
+
+async def fetch_air_stations(city: str, lat: float, lng: float) -> list[dict]:
+    """Fetch air quality monitoring stations from OpenAQ."""
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(OPENAQ_URL, params={
+                "coordinates": f"{lat},{lng}",
+                "radius": 25000,
+                "limit": 10,
+                "order_by": "lastUpdated",
+                "sort": "desc",
+            }, headers={"Accept": "application/json"})
+            resp.raise_for_status()
+            results = resp.json().get("results", [])
+    except Exception as e:
+        logger.warning(f"OpenAQ fetch failed for {city}: {e}")
+        results = []
+
+    stations = []
+    seen = set()
+    for r in results:
+        coords = r.get("coordinates") or {}
+        slat = coords.get("latitude", lat)
+        slng = coords.get("longitude", lng)
+        name = r.get("location") or f"{city} Air Monitor"
+        if name in seen:
+            continue
+        seen.add(name)
+        stations.append({"name": name, "lat": slat, "lng": slng, "address": city})
+
+    # Always seed at least 3 stations per city using city center
+    CITY_NEIGHBORHOODS = {
+        "San Francisco": [
+            ("SF Downtown Monitor", lat, lng),
+            ("Mission District Monitor", lat - 0.02, lng + 0.01),
+            ("SoMa Monitor", lat - 0.01, lng - 0.01),
+        ],
+        "New York": [
+            ("Manhattan Monitor", lat, lng),
+            ("Brooklyn Monitor", lat - 0.05, lng + 0.02),
+            ("Queens Monitor", lat + 0.03, lng + 0.05),
+        ],
+        "Austin": [
+            ("Downtown Austin Monitor", lat, lng),
+            ("East Austin Monitor", lat + 0.01, lng + 0.02),
+            ("South Congress Monitor", lat - 0.02, lng + 0.01),
+        ],
+    }
+    if len(stations) < 3:
+        for name, nlat, nlng in CITY_NEIGHBORHOODS.get(city, []):
+            if name not in seen:
+                stations.append({"name": name, "lat": nlat, "lng": nlng, "address": city})
+                seen.add(name)
+
+    return stations[:6]
+
+
+async def fetch_bike_stations(city: str, lat: float, lng: float) -> list[dict]:
+    """Fetch bike share stations from GBFS."""
+    base = GBFS_FEEDS.get(city)
+    stations = []
+    if base:
+        try:
+            async with httpx.AsyncClient(timeout=15.0) as client:
+                info_resp = await client.get(f"{base}station_information.json")
+                info_resp.raise_for_status()
+                info_data = info_resp.json().get("data", {}).get("stations", [])
+            network = {"San Francisco": "Bay Wheels", "New York": "Citi Bike", "Austin": "MetroBike"}.get(city, "Bike Share")
+            for s in info_data[:20]:
+                slat = s.get("lat", 0.0)
+                slng = s.get("lon", 0.0)
+                if not slat and not slng:
+                    continue
+                stations.append({
+                    "name": s.get("name") or f"{city} Bike Station",
+                    "lat": slat, "lng": slng,
+                    "address": s.get("address") or city,
+                    "total_docks": s.get("capacity") or s.get("num_docks_available", 10),
+                    "station_type": "bike",
+                    "network": network,
+                    "gbfs_id": s.get("station_id"),
+                })
+        except Exception as e:
+            logger.warning(f"GBFS fetch failed for {city}: {e}")
+
+    # Fallback: seed from OSM bicycle rental nodes
+    if len(stations) < 5:
+        bbox = {
+            "San Francisco": "37.70,-122.52,37.83,-122.35",
+            "New York": "40.49,-74.26,40.92,-73.70",
+            "Austin": "30.10,-97.93,30.52,-97.56",
+        }.get(city, "")
+        if bbox:
+            query = f'[out:json][timeout:20]; node["amenity"="bicycle_rental"]({bbox}); out {15 - len(stations)};'
+            data = await _overpass_query(query)
+            if data:
+                network = {"San Francisco": "Bay Wheels", "New York": "Citi Bike", "Austin": "MetroBike"}.get(city, "Bike Share")
+                for el in data.get("elements", []):
+                    tags = el.get("tags", {})
+                    stations.append({
+                        "name": tags.get("name") or f"{city} Bike Station",
+                        "lat": el["lat"], "lng": el["lon"],
+                        "address": tags.get("addr:street") or city,
+                        "total_docks": int(tags.get("capacity", 12)),
+                        "station_type": "bike",
+                        "network": network,
+                    })
+
+    return stations[:15]
+
+
+async def fetch_food_trucks(city: str, bbox: str, limit: int = 20) -> list[dict]:
+    """Fetch food trucks from OSM."""
+    query = f"""
+[out:json][timeout:25];
+(
+  node["amenity"="food_truck"]({bbox});
+  node["amenity"="mobile_food_vendor"]({bbox});
+  node["amenity"="fast_food"]["operator:type"="mobile"]({bbox});
+);
+out tags {limit};
+"""
+    data = await _overpass_query(query)
+    results = []
+    if data:
+        for el in data.get("elements", [])[:limit]:
+            tags = el.get("tags", {})
+            name = tags.get("name") or tags.get("description") or f"{city} Food Truck"
+            cuisine = tags.get("cuisine") or tags.get("food") or "Various"
+            hours = tags.get("opening_hours") or "11am-9pm"
+            results.append({
+                "name": name,
+                "lat": el.get("lat", 0.0),
+                "lng": el.get("lon", 0.0),
+                "address": tags.get("addr:street") or city,
+                "cuisine": cuisine[:50],
+                "typical_hours": hours,
+            })
+
+    # Fallback: well-known food truck parks
+    if len(results) < 5:
+        KNOWN_TRUCKS = {
+            "Austin": [
+                {"name": "East Side King", "lat": 30.2623, "lng": -97.7295, "cuisine": "Asian Fusion", "typical_hours": "5pm-midnight"},
+                {"name": "Tyson's Tacos", "lat": 30.2511, "lng": -97.7519, "cuisine": "Tex-Mex", "typical_hours": "11am-3pm"},
+                {"name": "Veracruz All Natural", "lat": 30.2650, "lng": -97.7160, "cuisine": "Mexican", "typical_hours": "8am-3pm"},
+                {"name": "Juan in a Million", "lat": 30.2599, "lng": -97.7201, "cuisine": "Breakfast/Mexican", "typical_hours": "7am-2pm"},
+                {"name": "G'Raj Mahal", "lat": 30.2720, "lng": -97.7400, "cuisine": "Indian", "typical_hours": "11am-10pm"},
+                {"name": "Bouldin Creek Food Truck Park", "lat": 30.2510, "lng": -97.7529, "cuisine": "Various", "typical_hours": "10am-10pm"},
+                {"name": "South Congress Food Park", "lat": 30.2499, "lng": -97.7505, "cuisine": "Various", "typical_hours": "11am-9pm"},
+                {"name": "Rainey St Food Truck Row", "lat": 30.2596, "lng": -97.7382, "cuisine": "Various", "typical_hours": "4pm-midnight"},
+            ],
+            "San Francisco": [
+                {"name": "Off the Grid Fort Mason", "lat": 37.8055, "lng": -122.4326, "cuisine": "Various", "typical_hours": "5pm-10pm Fri"},
+                {"name": "Chairman Bao", "lat": 37.7849, "lng": -122.4194, "cuisine": "Bao/Asian", "typical_hours": "11am-2:30pm"},
+                {"name": "El Tonayense", "lat": 37.7590, "lng": -122.4147, "cuisine": "Mexican", "typical_hours": "10am-8pm"},
+                {"name": "Roli Roti", "lat": 37.7955, "lng": -122.3937, "cuisine": "Rotisserie", "typical_hours": "Sat 10am-2pm"},
+                {"name": "The Kebab Guys", "lat": 37.7751, "lng": -122.4050, "cuisine": "Middle Eastern", "typical_hours": "11am-3pm"},
+            ],
+            "New York": [
+                {"name": "The Halal Guys", "lat": 40.7614, "lng": -73.9798, "cuisine": "Halal", "typical_hours": "10am-4am"},
+                {"name": "Wafels & Dinges", "lat": 40.7580, "lng": -73.9855, "cuisine": "Belgian Waffles", "typical_hours": "8am-8pm"},
+                {"name": "Calexico Cart", "lat": 40.7453, "lng": -73.9942, "cuisine": "Mexican", "typical_hours": "11:30am-3pm"},
+                {"name": "Korilla BBQ", "lat": 40.7282, "lng": -73.9939, "cuisine": "Korean BBQ", "typical_hours": "11am-4pm"},
+                {"name": "Luke's Lobster Truck", "lat": 40.7128, "lng": -74.0059, "cuisine": "Seafood", "typical_hours": "11am-3pm"},
+            ],
+        }
+        for t in KNOWN_TRUCKS.get(city, []):
+            if len(results) >= limit:
+                break
+            results.append({**t, "address": city})
+
+    return results[:limit]
+
+
+async def fetch_noise_zones(city: str, bbox: str, limit: int = 12) -> list[dict]:
+    """Fetch entertainment/venue areas from OSM to build noise zones."""
+    query = f"""
+[out:json][timeout:25];
+(
+  node["amenity"~"bar|nightclub|concert_hall|theatre|stadium|restaurant"]({bbox});
+  way["amenity"~"bar|nightclub|stadium"]({bbox});
+  node["leisure"~"park|sports_centre"]({bbox});
+);
+out center tags {limit};
+"""
+    data = await _overpass_query(query)
+    results = []
+    seen_names = set()
+
+    if data:
+        for el in data.get("elements", [])[:limit]:
+            lat, lng = _extract_center(el)
+            if not lat and not lng:
+                continue
+            tags = el.get("tags", {})
+            name = tags.get("name") or f"{city} Area"
+            if name in seen_names:
+                continue
+            seen_names.add(name)
+            amenity = tags.get("amenity") or tags.get("leisure", "")
+            if amenity in ("nightclub", "bar", "concert_hall"):
+                zone_type = "entertainment"
+            elif amenity in ("stadium",):
+                zone_type = "entertainment"
+            elif amenity in ("park", "sports_centre"):
+                zone_type = "residential"
+            else:
+                zone_type = "commercial"
+            results.append({
+                "name": name,
+                "lat": lat,
+                "lng": lng,
+                "address": tags.get("addr:street") or city,
+                "zone_type": zone_type,
+            })
+
+    # Fallback: well-known neighborhoods
+    FALLBACK_ZONES = {
+        "Austin": [
+            {"name": "6th Street Entertainment District", "lat": 30.2673, "lng": -97.7406, "zone_type": "entertainment"},
+            {"name": "Rainey Street", "lat": 30.2598, "lng": -97.7381, "zone_type": "entertainment"},
+            {"name": "South Congress Ave", "lat": 30.2500, "lng": -97.7506, "zone_type": "commercial"},
+            {"name": "Downtown Austin", "lat": 30.2672, "lng": -97.7431, "zone_type": "commercial"},
+            {"name": "East Austin", "lat": 30.2623, "lng": -97.7209, "zone_type": "residential"},
+            {"name": "Barton Springs", "lat": 30.2638, "lng": -97.7714, "zone_type": "residential"},
+        ],
+        "San Francisco": [
+            {"name": "The Castro", "lat": 37.7609, "lng": -122.4350, "zone_type": "entertainment"},
+            {"name": "North Beach / Fisherman's Wharf", "lat": 37.8030, "lng": -122.4102, "zone_type": "entertainment"},
+            {"name": "SoMa", "lat": 37.7786, "lng": -122.3956, "zone_type": "entertainment"},
+            {"name": "Mission District", "lat": 37.7599, "lng": -122.4148, "zone_type": "commercial"},
+            {"name": "Financial District", "lat": 37.7946, "lng": -122.3999, "zone_type": "commercial"},
+            {"name": "Golden Gate Park", "lat": 37.7694, "lng": -122.4862, "zone_type": "residential"},
+        ],
+        "New York": [
+            {"name": "Times Square", "lat": 40.7580, "lng": -73.9855, "zone_type": "entertainment"},
+            {"name": "Lower East Side", "lat": 40.7150, "lng": -73.9856, "zone_type": "entertainment"},
+            {"name": "Brooklyn Williamsburg", "lat": 40.7081, "lng": -73.9571, "zone_type": "entertainment"},
+            {"name": "Midtown Manhattan", "lat": 40.7549, "lng": -73.9840, "zone_type": "commercial"},
+            {"name": "Wall Street", "lat": 40.7074, "lng": -74.0113, "zone_type": "commercial"},
+            {"name": "Central Park", "lat": 40.7851, "lng": -73.9683, "zone_type": "residential"},
+        ],
+    }
+    for z in FALLBACK_ZONES.get(city, []):
+        if len(results) >= limit:
+            break
+        if z["name"] not in seen_names:
+            results.append({**z, "address": city})
+            seen_names.add(z["name"])
+
+    return results[:limit]
+
+
 # ── Haversine distance ─────────────────────────────────────────────────────────
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -282,11 +547,17 @@ async def seed_city_real(db: AsyncSession, city_name: str) -> None:
     ev_data = await fetch_ev_stations(city_name, lat, lng)
     service_data = await fetch_services(city_name, bbox)
     transit_data = await fetch_transit_routes(city_name, bbox)
+    air_data = await fetch_air_stations(city_name, lat, lng)
+    bike_data = await fetch_bike_stations(city_name, lat, lng)
+    food_truck_data = await fetch_food_trucks(city_name, bbox)
+    noise_data = await fetch_noise_zones(city_name, bbox)
 
     # Fallback counts for logging
     logger.info(
         f"{city_name}: parking={len(parking_data)}, ev={len(ev_data)}, "
-        f"services={len(service_data)}, transit={len(transit_data)}"
+        f"services={len(service_data)}, transit={len(transit_data)}, "
+        f"air={len(air_data)}, bikes={len(bike_data)}, "
+        f"food_trucks={len(food_truck_data)}, noise={len(noise_data)}"
     )
 
     for p in parking_data:
@@ -318,6 +589,40 @@ async def seed_city_real(db: AsyncSession, city_name: str) -> None:
             name=s["name"], lat=s["lat"], lng=s["lng"],
             category=s["category"], address=s["address"],
             typical_hours=s["typical_hours"],
+        ))
+
+    for a in air_data:
+        db.add(AirStation(
+            id=_uid(), city=city_name,
+            name=a["name"], lat=a["lat"], lng=a["lng"],
+            address=a["address"],
+        ))
+
+    for b in bike_data:
+        db.add(BikeStation(
+            id=_uid(), city=city_name,
+            name=b["name"], lat=b["lat"], lng=b["lng"],
+            address=b["address"],
+            total_docks=b.get("total_docks", 12),
+            station_type=b.get("station_type", "bike"),
+            network=b.get("network", ""),
+        ))
+
+    for f in food_truck_data:
+        db.add(FoodTruck(
+            id=_uid(), city=city_name,
+            name=f["name"], lat=f["lat"], lng=f["lng"],
+            address=f["address"],
+            cuisine=f.get("cuisine", "Various"),
+            typical_hours=f.get("typical_hours", ""),
+        ))
+
+    for n in noise_data:
+        db.add(NoiseZone(
+            id=_uid(), city=city_name,
+            name=n["name"], lat=n["lat"], lng=n["lng"],
+            address=n["address"],
+            zone_type=n.get("zone_type", "commercial"),
         ))
 
     await db.commit()

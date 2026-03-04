@@ -10,6 +10,10 @@ const NAV = [
   { href: "/ev", label: "EV Charging", icon: "⚡" },
   { href: "/transit", label: "Transit", icon: "🚇" },
   { href: "/services", label: "Services", icon: "🏛" },
+  { href: "/air", label: "Air Quality", icon: "🌬" },
+  { href: "/bikes", label: "Bikes", icon: "🚲" },
+  { href: "/food-trucks", label: "Food Trucks", icon: "🚚" },
+  { href: "/noise", label: "Noise & Vibe", icon: "🎵" },
   { href: "/plan", label: "AI Plan", icon: "✦" },
 ];
 

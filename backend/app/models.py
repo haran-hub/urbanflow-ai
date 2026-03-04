@@ -147,3 +147,121 @@ class UserSession(Base):
     city: Mapped[str] = mapped_column(String, default="")
     preferences: Mapped[dict] = mapped_column(JSON, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+# ── New Categories ─────────────────────────────────────────────────────────────
+
+class AirStation(Base):
+    __tablename__ = "air_stations"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String)
+    city: Mapped[str] = mapped_column(String, index=True)
+    lat: Mapped[float] = mapped_column(Float)
+    lng: Mapped[float] = mapped_column(Float)
+    address: Mapped[str] = mapped_column(String, default="")
+
+    snapshots: Mapped[list["AirSnapshot"]] = relationship(back_populates="station", cascade="all, delete-orphan")
+
+
+class AirSnapshot(Base):
+    __tablename__ = "air_snapshots"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    station_id: Mapped[str] = mapped_column(String, ForeignKey("air_stations.id"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    aqi: Mapped[int] = mapped_column(Integer, default=0)
+    pm25: Mapped[float] = mapped_column(Float, default=0.0)
+    pm10: Mapped[float] = mapped_column(Float, default=0.0)
+    o3: Mapped[float] = mapped_column(Float, default=0.0)
+    pollen_level: Mapped[int] = mapped_column(Integer, default=0)   # 0=None 1=Low 2=Med 3=High 4=VeryHigh
+    uv_index: Mapped[float] = mapped_column(Float, default=0.0)
+    category: Mapped[str] = mapped_column(String, default="Good")   # Good/Moderate/Unhealthy for Sensitive/Unhealthy/Very Unhealthy/Hazardous
+
+    station: Mapped["AirStation"] = relationship(back_populates="snapshots")
+
+
+class BikeStation(Base):
+    __tablename__ = "bike_stations"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String)
+    city: Mapped[str] = mapped_column(String, index=True)
+    lat: Mapped[float] = mapped_column(Float)
+    lng: Mapped[float] = mapped_column(Float)
+    address: Mapped[str] = mapped_column(String, default="")
+    total_docks: Mapped[int] = mapped_column(Integer, default=0)
+    station_type: Mapped[str] = mapped_column(String, default="bike")  # bike / scooter / mixed
+    network: Mapped[str] = mapped_column(String, default="")
+
+    snapshots: Mapped[list["BikeSnapshot"]] = relationship(back_populates="station", cascade="all, delete-orphan")
+
+
+class BikeSnapshot(Base):
+    __tablename__ = "bike_snapshots"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    station_id: Mapped[str] = mapped_column(String, ForeignKey("bike_stations.id"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    available_bikes: Mapped[int] = mapped_column(Integer, default=0)
+    available_ebikes: Mapped[int] = mapped_column(Integer, default=0)
+    available_docks: Mapped[int] = mapped_column(Integer, default=0)
+    is_renting: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    station: Mapped["BikeStation"] = relationship(back_populates="snapshots")
+
+
+class FoodTruck(Base):
+    __tablename__ = "food_trucks"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String)
+    city: Mapped[str] = mapped_column(String, index=True)
+    lat: Mapped[float] = mapped_column(Float)
+    lng: Mapped[float] = mapped_column(Float)
+    address: Mapped[str] = mapped_column(String, default="")
+    cuisine: Mapped[str] = mapped_column(String, default="Various")
+    typical_hours: Mapped[str] = mapped_column(String, default="")
+
+    snapshots: Mapped[list["FoodTruckSnapshot"]] = relationship(back_populates="truck", cascade="all, delete-orphan")
+
+
+class FoodTruckSnapshot(Base):
+    __tablename__ = "food_truck_snapshots"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    truck_id: Mapped[str] = mapped_column(String, ForeignKey("food_trucks.id"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    is_open: Mapped[bool] = mapped_column(Boolean, default=False)
+    wait_minutes: Mapped[int] = mapped_column(Integer, default=0)
+    crowd_level: Mapped[int] = mapped_column(Integer, default=0)  # 0-100
+
+    truck: Mapped["FoodTruck"] = relationship(back_populates="snapshots")
+
+
+class NoiseZone(Base):
+    __tablename__ = "noise_zones"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    name: Mapped[str] = mapped_column(String)
+    city: Mapped[str] = mapped_column(String, index=True)
+    lat: Mapped[float] = mapped_column(Float)
+    lng: Mapped[float] = mapped_column(Float)
+    address: Mapped[str] = mapped_column(String, default="")
+    zone_type: Mapped[str] = mapped_column(String, default="mixed")  # entertainment/residential/commercial/transit
+
+    snapshots: Mapped[list["NoiseSnapshot"]] = relationship(back_populates="zone", cascade="all, delete-orphan")
+
+
+class NoiseSnapshot(Base):
+    __tablename__ = "noise_snapshots"
+
+    id: Mapped[str] = mapped_column(String, primary_key=True, default=new_uuid)
+    zone_id: Mapped[str] = mapped_column(String, ForeignKey("noise_zones.id"), index=True)
+    timestamp: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    noise_db: Mapped[float] = mapped_column(Float, default=45.0)
+    vibe_score: Mapped[int] = mapped_column(Integer, default=50)    # 0-100
+    crowd_density: Mapped[int] = mapped_column(Integer, default=0)  # 0-100
+    vibe_label: Mapped[str] = mapped_column(String, default="Quiet")  # Quiet/Calm/Lively/Buzzing/Wild
+
+    zone: Mapped["NoiseZone"] = relationship(back_populates="snapshots")
