@@ -83,7 +83,7 @@ export default function DashboardPage() {
                 icon="🅿"
                 label="Parking Available"
                 value={o?.parking.available_spots.toLocaleString() ?? "—"}
-                sub={`${o?.parking.zones_count} zones · ${o?.parking.occupancy_pct.toFixed(0)}% full`}
+                sub={o ? `${o.parking.zones_count} zones · ${o.parking.occupancy_pct.toFixed(0)}% full` : "—"}
                 accent="blue"
                 trend={o && o.parking.occupancy_pct < 70 ? "good" : "bad"}
               />
@@ -91,7 +91,7 @@ export default function DashboardPage() {
                 icon="⚡"
                 label="EV Ports Available"
                 value={o?.ev_charging.available_ports ?? "—"}
-                sub={`Avg wait: ${o?.ev_charging.avg_wait_minutes ?? 0} min · ${o?.ev_charging.stations_count} stations`}
+                sub={o ? `Avg wait: ${o.ev_charging.avg_wait_minutes} min · ${o.ev_charging.stations_count} stations` : "—"}
                 accent="yellow"
                 trend={o && o.ev_charging.available_ports > 0 ? "good" : "bad"}
               />
@@ -99,7 +99,7 @@ export default function DashboardPage() {
                 icon="🚇"
                 label="Transit Crowd"
                 value={o ? `${o.transit.avg_crowd_level}%` : "—"}
-                sub={`${o?.transit.crowd_label} · ${o?.transit.delayed_routes} routes delayed`}
+                sub={o ? `${o.transit.crowd_label} · ${o.transit.delayed_routes} routes delayed` : "—"}
                 accent={o && o.transit.avg_crowd_level > 70 ? "red" : "green"}
                 trend={o && o.transit.avg_crowd_level < 60 ? "good" : "bad"}
               />
