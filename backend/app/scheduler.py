@@ -268,6 +268,7 @@ def start_scheduler():
         minutes=settings.snapshot_interval_minutes,
         id="snapshot_update",
         replace_existing=True,
+        next_run_time=datetime.utcnow(),  # run immediately on startup
     )
     scheduler.start()
     logger.info(f"Scheduler started (interval: {settings.snapshot_interval_minutes} min)")
