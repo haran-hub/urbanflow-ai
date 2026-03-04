@@ -65,7 +65,7 @@ function FoodTrucksContent() {
   const CUISINES = ["all", ...Array.from(new Set(trucks.map(t => t.cuisine))).filter(Boolean).slice(0, 8)];
 
   return (
-    <main className="min-h-screen pt-14" style={{ background: "var(--bg)" }}>
+    <main className="min-h-screen pt-14 md:pt-0 md:pl-[220px]" style={{ background: "var(--bg)" }}>
       <Header city={city} onCityChange={setCity} />
 
       <div className="max-w-6xl mx-auto px-4 py-8">
