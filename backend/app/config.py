@@ -8,6 +8,8 @@ class Settings(BaseSettings):
     snapshot_interval_minutes: int = 2
     ai_model: str = "claude-haiku-4-5-20251001"
     default_city: str = "San Francisco"
+    ocm_api_key: str = ""       # Open Charge Map (optional, higher rate limits)
+    api_511_key: str = ""       # 511.org SF transit real-time (optional free key)
 
     class Config:
         env_file = ".env"

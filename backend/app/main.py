@@ -3,9 +3,11 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy import func, select
 
 from app.config import settings
-from app.database import create_tables
+from app.database import create_tables, AsyncSessionLocal
+from app.models import ParkingZone
 from app.scheduler import start_scheduler, stop_scheduler
 from app.routes import parking, ev, transit, services, dashboard, ws
 
@@ -16,6 +18,12 @@ logger = logging.getLogger(__name__)
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await create_tables()
+    async with AsyncSessionLocal() as db:
+        count = await db.scalar(select(func.count(ParkingZone.id)))
+        if count == 0:
+            logger.info("Empty DB detected — seeding from real APIs...")
+            from app.real_data_fetcher import seed_all_real
+            await seed_all_real(db)
     start_scheduler()
     logger.info("UrbanFlow AI backend started")
     yield

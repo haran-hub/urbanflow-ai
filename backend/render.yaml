@@ -3,7 +3,7 @@ services:
     name: urbanflow-ai-backend
     runtime: python
     rootDir: backend
-    buildCommand: pip install -r requirements.txt && python seed_data.py
+    buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: ANTHROPIC_API_KEY
@@ -11,6 +11,10 @@ services:
       - key: DATABASE_URL
         value: sqlite+aiosqlite:////opt/render/project/src/urbanflow.db
       - key: FRONTEND_URL
+        sync: false
+      - key: OCM_API_KEY
+        sync: false
+      - key: API_511_KEY
         sync: false
     disk:
       name: urbanflow-db
