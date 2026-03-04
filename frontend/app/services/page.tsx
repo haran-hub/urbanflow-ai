@@ -7,6 +7,7 @@ import BestTimeModal from "@/components/BestTimeModal";
 import Toast from "@/components/Toast";
 import { getServices, predictService } from "@/lib/api";
 import type { LocalService } from "@/lib/types";
+import { useDetectedCity } from "@/hooks/useDetectedCity";
 import type { MapItem } from "@/components/CityMap";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
@@ -26,7 +27,7 @@ const WAIT_COLOR: Record<string, string> = {
 
 function ServicesContent() {
   const params = useSearchParams();
-  const [city, setCity] = useState(params.get("city") || "San Francisco");
+  const { city, setCity } = useDetectedCity(params.get("city"));
   const [services, setServices] = useState<LocalService[]>([]);
   const [loading, setLoading] = useState(true);
   const [category, setCategory] = useState("all");

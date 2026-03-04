@@ -8,6 +8,7 @@ import BestTimeModal from "@/components/BestTimeModal";
 import Toast from "@/components/Toast";
 import { getParkingZones, predictParking, recommendParking } from "@/lib/api";
 import type { ParkingZone, Recommendation } from "@/lib/types";
+import { useDetectedCity } from "@/hooks/useDetectedCity";
 import type { MapItem } from "@/components/CityMap";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
@@ -16,7 +17,7 @@ const ZONE_ICONS: Record<string, string> = { garage: "🏢", lot: "⬜", street:
 
 function ParkingContent() {
   const params = useSearchParams();
-  const [city, setCity] = useState(params.get("city") || "San Francisco");
+  const { city, setCity } = useDetectedCity(params.get("city"));
   const [zones, setZones] = useState<ParkingZone[]>([]);
   const [loading, setLoading] = useState(true);
   const [bestTimeZone, setBestTimeZone] = useState<ParkingZone | null>(null);

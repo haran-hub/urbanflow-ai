@@ -6,6 +6,7 @@ import StatCard from "@/components/StatCard";
 import Toast from "@/components/Toast";
 import { getOverview } from "@/lib/api";
 import { useWebSocket } from "@/hooks/useWebSocket";
+import { useDetectedCity } from "@/hooks/useDetectedCity";
 import type { DashboardOverview } from "@/lib/types";
 
 const RUSH_COLOR: Record<string, string> = {
@@ -15,7 +16,7 @@ const RUSH_COLOR: Record<string, string> = {
 };
 
 export default function DashboardPage() {
-  const [city, setCity] = useState("San Francisco");
+  const { city, setCity } = useDetectedCity();
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);

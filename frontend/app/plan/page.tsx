@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import Toast from "@/components/Toast";
 import { generateAIPlan } from "@/lib/api";
 import type { UrbanPlan } from "@/lib/types";
+import { useDetectedCity } from "@/hooks/useDetectedCity";
 
 const NEEDS_OPTIONS = [
   { id: "parking", label: "Parking", icon: "🅿", desc: "Find best parking" },
@@ -15,7 +16,7 @@ const NEEDS_OPTIONS = [
 const STEP_ICONS: Record<number, string> = { 1: "①", 2: "②", 3: "③", 4: "④", 5: "⑤", 6: "⑥" };
 
 export default function PlanPage() {
-  const [city, setCity] = useState("San Francisco");
+  const { city, setCity } = useDetectedCity();
   const [needs, setNeeds] = useState<string[]>(["parking", "transit"]);
   const [departAt, setDepartAt] = useState(() => {
     const d = new Date(); d.setMinutes(0, 0, 0);

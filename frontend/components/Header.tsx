@@ -35,10 +35,12 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
 
         {/* Nav */}
         <nav className="flex items-center gap-1 flex-1 overflow-x-auto scrollbar-hide">
-          {NAV.map((n) => (
+          {NAV.map((n) => {
+            const href = n.href === "/" ? "/" : `${n.href}?city=${encodeURIComponent(city)}`;
+            return (
             <Link
               key={n.href}
-              href={n.href}
+              href={href}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all"
               style={{
                 color: pathname === n.href ? "var(--accent)" : "var(--muted)",
@@ -48,7 +50,8 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
               <span>{n.icon}</span>
               <span className="hidden sm:block">{n.label}</span>
             </Link>
-          ))}
+            );
+          })}
         </nav>
 
         {/* Live indicator + City selector */}

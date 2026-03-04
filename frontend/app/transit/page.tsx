@@ -7,13 +7,14 @@ import BestTimeModal from "@/components/BestTimeModal";
 import Toast from "@/components/Toast";
 import { getTransitRoutes, predictTransit } from "@/lib/api";
 import type { TransitRoute } from "@/lib/types";
+import { useDetectedCity } from "@/hooks/useDetectedCity";
 
 const TYPE_ICONS: Record<string, string> = { bus: "🚌", subway: "🚇", tram: "🚋", ferry: "⛴" };
 const TYPE_COLOR: Record<string, string> = { bus: "#f59e0b", subway: "#3b82f6", tram: "#22c55e", ferry: "#0ea5e9" };
 
 function TransitContent() {
   const params = useSearchParams();
-  const [city, setCity] = useState(params.get("city") || "San Francisco");
+  const { city, setCity } = useDetectedCity(params.get("city"));
   const [routes, setRoutes] = useState<TransitRoute[]>([]);
   const [loading, setLoading] = useState(true);
   const [bestTimeRoute, setBestTimeRoute] = useState<TransitRoute | null>(null);

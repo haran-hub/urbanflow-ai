@@ -7,6 +7,7 @@ import BestTimeModal from "@/components/BestTimeModal";
 import Toast from "@/components/Toast";
 import { getEVStations, predictEV, recommendEV } from "@/lib/api";
 import type { EVStation, Recommendation } from "@/lib/types";
+import { useDetectedCity } from "@/hooks/useDetectedCity";
 import type { MapItem } from "@/components/CityMap";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
@@ -19,7 +20,7 @@ const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
 
 function EVContent() {
   const params = useSearchParams();
-  const [city, setCity] = useState(params.get("city") || "San Francisco");
+  const { city, setCity } = useDetectedCity(params.get("city"));
   const [stations, setStations] = useState<EVStation[]>([]);
   const [loading, setLoading] = useState(true);
   const [bestTimeStation, setBestTimeStation] = useState<EVStation | null>(null);
