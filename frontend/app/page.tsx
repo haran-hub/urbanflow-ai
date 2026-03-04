@@ -122,30 +122,109 @@ export default function DashboardPage() {
         <div className="max-w-6xl mx-auto">
           <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--muted)" }}>EXPLORE</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            {[
-              { href: "/parking", icon: "🅿", label: "Parking", desc: "Find available spots, predict occupancy, get recommendations", color: "#3b82f6" },
-              { href: "/ev", icon: "⚡", label: "EV Charging", desc: "Check station availability, wait times, best charging options", color: "#f59e0b" },
-              { href: "/transit", icon: "🚇", label: "Transit", desc: "Live crowd levels, delays, optimal departure times", color: "#22c55e" },
-              { href: "/services", icon: "🏛", label: "Local Services", desc: "DMV, hospitals, banks — predicted wait times", color: "#a855f7" },
-            ].map((item) => (
-              <Link
-                key={item.href}
-                href={`${item.href}?city=${encodeURIComponent(city)}`}
-                className="card p-5 flex flex-col gap-3 group cursor-pointer"
-              >
-                <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                  style={{ background: `${item.color}15`, color: item.color }}>
-                  {item.icon}
+
+            {/* ── Parking ── */}
+            <Link href={`/parking?city=${encodeURIComponent(city)}`}
+              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-parking" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: "#3b82f615", color: "#3b82f6" }}>🅿</div>
+              {/* Parking spot mini-grid */}
+              <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+                {(["#22c55e","#22c55e","#22c55e","#22c55e",
+                   "#22c55e","#f59e0b","#f59e0b","#22c55e",
+                   "#ef4444","#ef4444","#f59e0b","#22c55e"] as const).map((color, i) => (
+                  <div key={i} className="p-spot rounded-sm"
+                    style={{ height: 7, background: color, "--d": `${i * 0.045}s` } as React.CSSProperties} />
+                ))}
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Parking</p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Find available spots, predict occupancy, get recommendations</p>
+              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#3b82f6" }}>
+                Explore <span>→</span>
+              </div>
+            </Link>
+
+            {/* ── EV Charging ── */}
+            <Link href={`/ev?city=${encodeURIComponent(city)}`}
+              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-ev" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: "#f59e0b15", color: "#f59e0b" }}>⚡</div>
+              {/* Animated battery */}
+              <div className="flex items-center gap-2">
+                <div style={{ flex: 1, height: 14, border: "1.5px solid rgba(245,158,11,0.35)", borderRadius: 3, padding: 2, background: "rgba(245,158,11,0.04)" }}>
+                  <div className="ev-charge-bar" style={{ height: "100%", width: "10%", background: "linear-gradient(90deg,#f59e0b,#fbbf24)", borderRadius: 2 }} />
                 </div>
-                <div>
-                  <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>{item.label}</p>
-                  <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>{item.desc}</p>
-                </div>
-                <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: item.color }}>
-                  Explore <span>→</span>
-                </div>
-              </Link>
-            ))}
+                <div style={{ width: 5, height: 8, background: "rgba(245,158,11,0.45)", borderRadius: "0 2px 2px 0", marginLeft: -1 }} />
+                <span className="ev-bolt" style={{ fontSize: 20, color: "#f59e0b", lineHeight: 1 }}>⚡</span>
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>EV Charging</p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Check station availability, wait times, best charging options</p>
+              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#f59e0b" }}>
+                Explore <span>→</span>
+              </div>
+            </Link>
+
+            {/* ── Transit ── */}
+            <Link href={`/transit?city=${encodeURIComponent(city)}`}
+              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-transit" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: "#22c55e15", color: "#22c55e" }}>🚇</div>
+              {/* Animated track + train */}
+              <div style={{ position: "relative", height: 24, overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1.5, background: "rgba(34,197,94,0.2)", transform: "translateY(-50%)" }} />
+                {[0,1,2,3].map(i => (
+                  <div key={i} className="stop-dot" style={{
+                    position: "absolute", top: "50%",
+                    left: `${10 + i * 25}%`,
+                    width: 7, height: 7, borderRadius: "50%",
+                    background: "rgba(34,197,94,0.25)",
+                    "--d": `${i * 0.38}s`,
+                  } as React.CSSProperties} />
+                ))}
+                <span className="transit-train" style={{ position: "absolute", top: "50%", fontSize: 16, lineHeight: 1, userSelect: "none" }}>🚇</span>
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Transit</p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Live crowd levels, delays, optimal departure times</p>
+              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#22c55e" }}>
+                Explore <span>→</span>
+              </div>
+            </Link>
+
+            {/* ── Local Services ── */}
+            <Link href={`/services?city=${encodeURIComponent(city)}`}
+              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-services" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: "#a855f715", color: "#a855f7" }}>🏛</div>
+              {/* Service icons that burst outward */}
+              <div style={{ position: "relative", height: 30 }}>
+                {([
+                  { icon: "🏥", tx: "-22px", ty: "-10px", d: "0s" },
+                  { icon: "💊", tx:  "22px", ty: "-10px", d: "0.08s" },
+                  { icon: "🏦", tx: "-22px", ty:  "10px", d: "0.16s" },
+                  { icon: "📮", tx:  "22px", ty:  "10px", d: "0.24s" },
+                ]).map((s, i) => (
+                  <span key={i} className="svc-icon" style={{
+                    position: "absolute", top: "50%", left: "50%",
+                    fontSize: 15, marginTop: -8, marginLeft: -8,
+                    "--tx": s.tx, "--ty": s.ty, "--d": s.d,
+                  } as React.CSSProperties}>{s.icon}</span>
+                ))}
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Local Services</p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>DMV, hospitals, banks — predicted wait times</p>
+              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#a855f7" }}>
+                Explore <span>→</span>
+              </div>
+            </Link>
+
           </div>
         </div>
       </section>
