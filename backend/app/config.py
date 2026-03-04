@@ -1,0 +1,16 @@
+from pydantic_settings import BaseSettings
+
+
+class Settings(BaseSettings):
+    anthropic_api_key: str = ""
+    database_url: str = "sqlite+aiosqlite:///./urbanflow.db"
+    frontend_url: str = "http://localhost:3000"
+    snapshot_interval_minutes: int = 2
+    ai_model: str = "claude-haiku-4-5-20251001"
+    default_city: str = "San Francisco"
+
+    class Config:
+        env_file = ".env"
+
+
+settings = Settings()

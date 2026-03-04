@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.py[cod]
+*.db
+*.sqlite3
+.env
+
+# Node
+node_modules/
+.next/
+.DS_Store
+*.log
+
+# IDE
+.idea/
+.vscode/

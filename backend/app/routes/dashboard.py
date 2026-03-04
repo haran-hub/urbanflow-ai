@@ -1,0 +1,210 @@
+from __future__ import annotations
+
+from datetime import datetime
+from fastapi import APIRouter, Depends, Query
+from fastapi.responses import JSONResponse
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select, desc
+
+from app.database import get_db
+from app.models import (
+    ParkingZone, ParkingSnapshot,
+    EVStation, EVSnapshot,
+    TransitRoute, TransitSnapshot,
+    LocalService, ServiceSnapshot,
+)
+from app.ai_predictor import generate_urban_plan, find_best_time
+
+router = APIRouter(prefix="/api/dashboard", tags=["Dashboard"])
+
+
+async def _latest_snap(db, model, fk_field, entity_id):
+    snap = (
+        await db.execute(
+            select(model)
+            .where(getattr(model, fk_field) == entity_id)
+            .order_by(desc(model.timestamp))
+            .limit(1)
+        )
+    ).scalar_one_or_none()
+    return snap
+
+
+@router.get("/overview")
+async def overview(
+    city: str = Query(default="San Francisco"),
+    db: AsyncSession = Depends(get_db),
+):
+    # Parking summary
+    zones = (await db.execute(select(ParkingZone).where(ParkingZone.city == city))).scalars().all()
+    parking_available = 0
+    parking_total = 0
+    for zone in zones:
+        snap = await _latest_snap(db, ParkingSnapshot, "zone_id", zone.id)
+        parking_total += zone.total_spots
+        parking_available += snap.available_spots if snap else zone.total_spots
+
+    # EV summary
+    stations = (await db.execute(select(EVStation).where(EVStation.city == city))).scalars().all()
+    ev_available = 0
+    ev_total = 0
+    ev_avg_wait = 0
+    for station in stations:
+        snap = await _latest_snap(db, EVSnapshot, "station_id", station.id)
+        ev_total += station.total_ports
+        ev_available += snap.available_ports if snap else station.total_ports
+        if snap:
+            ev_avg_wait += snap.avg_wait_minutes
+    ev_avg_wait = round(ev_avg_wait / len(stations), 1) if stations else 0
+
+    # Transit summary
+    routes = (await db.execute(select(TransitRoute).where(TransitRoute.city == city))).scalars().all()
+    transit_avg_crowd = 0
+    transit_delayed = 0
+    for route in routes:
+        snap = await _latest_snap(db, TransitSnapshot, "route_id", route.id)
+        if snap:
+            transit_avg_crowd += snap.occupancy_level
+            if snap.delay_minutes > 3:
+                transit_delayed += 1
+    transit_avg_crowd = round(transit_avg_crowd / len(routes)) if routes else 0
+
+    # Services summary
+    services = (await db.execute(select(LocalService).where(LocalService.city == city))).scalars().all()
+    services_open = 0
+    services_avg_wait = 0
+    for service in services:
+        snap = await _latest_snap(db, ServiceSnapshot, "service_id", service.id)
+        if snap and snap.is_open:
+            services_open += 1
+            services_avg_wait += snap.estimated_wait_minutes
+    services_avg_wait = round(services_avg_wait / services_open) if services_open else 0
+
+    now = datetime.utcnow()
+    hour = now.hour
+    if 7 <= hour < 9 or 17 <= hour < 19:
+        rush_status = "Peak Rush Hour"
+    elif 9 <= hour < 17:
+        rush_status = "Normal Hours"
+    else:
+        rush_status = "Off-Peak"
+
+    return {
+        "city": city,
+        "timestamp": now.isoformat(),
+        "rush_status": rush_status,
+        "parking": {
+            "total_spots": parking_total,
+            "available_spots": parking_available,
+            "occupancy_pct": round((1 - parking_available / parking_total) * 100, 1) if parking_total else 0,
+            "zones_count": len(zones),
+        },
+        "ev_charging": {
+            "total_ports": ev_total,
+            "available_ports": ev_available,
+            "avg_wait_minutes": ev_avg_wait,
+            "stations_count": len(stations),
+        },
+        "transit": {
+            "routes_count": len(routes),
+            "avg_crowd_level": transit_avg_crowd,
+            "delayed_routes": transit_delayed,
+            "crowd_label": "Packed" if transit_avg_crowd > 80 else "Busy" if transit_avg_crowd > 60 else "Comfortable",
+        },
+        "services": {
+            "total": len(services),
+            "open_now": services_open,
+            "avg_wait_minutes": services_avg_wait,
+        },
+    }
+
+
+class UrbanPlanRequest(BaseModel):
+    lat: float
+    lng: float
+    city: str = "San Francisco"
+    needs: list[str]  # e.g. ["parking", "ev", "transit"]
+    depart_at: str    # ISO datetime
+
+
+@router.post("/ai-plan")
+async def ai_plan(request: UrbanPlanRequest, db: AsyncSession = Depends(get_db)):
+    all_options: dict = {}
+
+    if "parking" in request.needs:
+        zones = (await db.execute(select(ParkingZone).where(ParkingZone.city == request.city))).scalars().all()
+        parking_opts = []
+        for zone in zones[:5]:
+            snap = await _latest_snap(db, ParkingSnapshot, "zone_id", zone.id)
+            parking_opts.append({
+                "id": zone.id, "name": zone.name, "zone_type": zone.zone_type,
+                "available_spots": snap.available_spots if snap else zone.total_spots,
+                "hourly_rate": zone.hourly_rate,
+            })
+        all_options["parking"] = parking_opts
+
+    if "ev" in request.needs:
+        stations = (await db.execute(select(EVStation).where(EVStation.city == request.city))).scalars().all()
+        ev_opts = []
+        for station in stations[:5]:
+            snap = await _latest_snap(db, EVSnapshot, "station_id", station.id)
+            ev_opts.append({
+                "id": station.id, "name": station.name,
+                "available_ports": snap.available_ports if snap else station.total_ports,
+                "avg_wait_minutes": snap.avg_wait_minutes if snap else 0,
+            })
+        all_options["ev"] = ev_opts
+
+    if "transit" in request.needs:
+        routes = (await db.execute(select(TransitRoute).where(TransitRoute.city == request.city))).scalars().all()
+        transit_opts = []
+        for route in routes[:5]:
+            snap = await _latest_snap(db, TransitSnapshot, "route_id", route.id)
+            transit_opts.append({
+                "id": route.id, "name": route.name, "route_type": route.route_type,
+                "occupancy_level": snap.occupancy_level if snap else 0,
+                "next_arrival_mins": snap.next_arrival_mins if snap else route.frequency_mins,
+            })
+        all_options["transit"] = transit_opts
+
+    if "services" in request.needs:
+        svcs = (await db.execute(select(LocalService).where(LocalService.city == request.city))).scalars().all()
+        svc_opts = []
+        for svc in svcs[:5]:
+            snap = await _latest_snap(db, ServiceSnapshot, "service_id", svc.id)
+            svc_opts.append({
+                "id": svc.id, "name": svc.name, "category": svc.category,
+                "estimated_wait_minutes": snap.estimated_wait_minutes if snap else 0,
+                "is_open": snap.is_open if snap else True,
+            })
+        all_options["services"] = svc_opts
+
+    location = {"lat": request.lat, "lng": request.lng, "city": request.city}
+    plan = await generate_urban_plan(location, request.needs, request.depart_at, all_options)
+    return {"plan": plan, "generated_at": datetime.utcnow().isoformat()}
+
+
+@router.get("/best-time")
+async def best_time(
+    entity_type: str = Query(..., description="parking / ev / transit / service"),
+    entity_id: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    entity_map = {
+        "parking": (ParkingZone, {}),
+        "ev": (EVStation, {}),
+        "transit": (TransitRoute, {}),
+        "service": (LocalService, {}),
+    }
+    if entity_type not in entity_map:
+        return JSONResponse(status_code=400, content={"detail": "Invalid entity_type"})
+
+    model_class, _ = entity_map[entity_type]
+    entity = await db.get(model_class, entity_id)
+    if not entity:
+        return JSONResponse(status_code=404, content={"detail": "Entity not found"})
+
+    entity_dict = {c.name: getattr(entity, c.name) for c in entity.__table__.columns}
+    result = await find_best_time(entity_type, entity_dict)
+    return {"entity_type": entity_type, "entity_id": entity_id, **result}
