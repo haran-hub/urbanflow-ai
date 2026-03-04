@@ -121,35 +121,51 @@ def generate_transit_crowd(route: dict, now: datetime | None = None) -> tuple[in
     return occupancy, delay, next_arrival
 
 
+def _parse_is_open(category: str, typical_hours: str, local_now: datetime) -> bool:
+    h = typical_hours.strip().lower()
+    hour = local_now.hour
+    weekday = local_now.weekday()  # 0=Mon, 6=Sun
+
+    if "24/7" in h or "24 hours" in h:
+        return True
+
+    DEFAULTS: dict[str, tuple] = {
+        "hospital":    (0, 24, range(7)),
+        "pharmacy":    (8, 22, range(7)),
+        "bank":        (9, 17, range(5)),
+        "post_office": (9, 17, list(range(5)) + [5]),
+        "dmv":         (8, 17, [1, 2, 3, 4, 5]),
+    }
+    open_h, close_h, open_days = DEFAULTS.get(category, (9, 17, range(5)))
+    return (open_h <= hour < close_h) and (weekday in open_days)
+
+
 def generate_service_wait(service: dict, now: datetime | None = None) -> tuple[int, int, bool]:
     """
     Returns (estimated_wait_minutes, queue_length, is_open).
     service dict needs: category, typical_hours
     """
     now = now or datetime.utcnow()
-    hour = now.hour
-    weekday = now.weekday()
 
-    # Determine if open (simplified: 9-17 weekdays, some weekends)
-    is_open = (9 <= hour < 17) and weekday < 6
-    if service.get("category") == "hospital":
-        is_open = True  # 24/7
+    category = service.get("category", "")
+    typical_hours = service.get("typical_hours", "")
+    is_open = _parse_is_open(category, typical_hours, now)
 
     if not is_open:
         return 0, 0, False
 
-    demand = _rush_curve(now.hour + now.minute / 60) * _weekend_factor(weekday, "service")
+    demand = _rush_curve(now.hour + now.minute / 60) * _weekend_factor(now.weekday(), "service")
 
     # DMV and government services have worst wait times
-    if service.get("category") in ("dmv", "post_office"):
+    if category in ("dmv", "post_office"):
         base_wait = 30 + demand * 50
         queue = int(demand * 25)
-    elif service.get("category") == "hospital":
+    elif category == "hospital":
         # ER wait varies widely; peaks late evening
         evening = math.exp(-0.5 * ((now.hour - 20) / 3) ** 2)
         base_wait = 30 + (demand + evening) * 40
         queue = int((demand + evening) * 15)
-    elif service.get("category") == "bank":
+    elif category == "bank":
         base_wait = 5 + demand * 20
         queue = int(demand * 10)
     else:

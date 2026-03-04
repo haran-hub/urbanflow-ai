@@ -6,7 +6,8 @@ and trims old data (keep last 24h).
 """
 import logging
 import math
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import httpx
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -37,6 +38,17 @@ CITY_CENTERS = {
     "New York":      (40.7128, -74.0060),
     "Austin":        (30.2672, -97.7431),
 }
+
+CITY_TIMEZONES = {
+    "San Francisco": "America/Los_Angeles",
+    "New York": "America/New_York",
+    "Austin": "America/Chicago",
+}
+
+
+def _local_now(city: str, utc_now: datetime) -> datetime:
+    tz = ZoneInfo(CITY_TIMEZONES.get(city, "UTC"))
+    return utc_now.replace(tzinfo=timezone.utc).astimezone(tz)
 
 
 def _haversine_km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
@@ -84,7 +96,7 @@ async def _update_ev_realtime(db, now: datetime) -> list[EVStation]:
         if not center:
             # Fallback to simulation for unknown cities
             for station in city_list:
-                available, wait = generate_ev_wait({"total_ports": station.total_ports}, now)
+                available, wait = generate_ev_wait({"total_ports": station.total_ports}, _local_now(city, now))
                 db.add(EVSnapshot(
                     station_id=station.id, timestamp=now,
                     available_ports=available, avg_wait_minutes=wait,
@@ -122,10 +134,10 @@ async def _update_ev_realtime(db, now: datetime) -> list[EVStation]:
                     available = 0
                     wait = 60
                 else:                               # Operational (50) — use simulation
-                    available, wait = generate_ev_wait({"total_ports": station.total_ports}, now)
+                    available, wait = generate_ev_wait({"total_ports": station.total_ports}, _local_now(station.city, now))
             else:
                 # No nearby OCM match — simulate
-                available, wait = generate_ev_wait({"total_ports": station.total_ports}, now)
+                available, wait = generate_ev_wait({"total_ports": station.total_ports}, _local_now(station.city, now))
 
             db.add(EVSnapshot(
                 station_id=station.id, timestamp=now,
@@ -179,7 +191,7 @@ async def _update_transit_realtime(db, now: datetime) -> list[TransitRoute]:
 
     for route in routes:
         crowd, delay, next_arr = generate_transit_crowd(
-            {"frequency_mins": route.frequency_mins, "route_type": route.route_type}, now
+            {"frequency_mins": route.frequency_mins, "route_type": route.route_type}, _local_now(route.city, now)
         )
         # Override delay for SF routes if 511 data available
         if route.city == "San Francisco" and sf_delays:
@@ -205,7 +217,7 @@ async def _update_snapshots():
         zones = (await db.execute(select(ParkingZone))).scalars().all()
         for zone in zones:
             occ, available = generate_parking_occupancy(
-                {"total_spots": zone.total_spots, "zone_type": zone.zone_type}, now
+                {"total_spots": zone.total_spots, "zone_type": zone.zone_type}, _local_now(zone.city, now)
             )
             db.add(ParkingSnapshot(
                 zone_id=zone.id, timestamp=now,
@@ -222,7 +234,7 @@ async def _update_snapshots():
         services = (await db.execute(select(LocalService))).scalars().all()
         for service in services:
             wait, queue, is_open = generate_service_wait(
-                {"category": service.category, "typical_hours": service.typical_hours}, now
+                {"category": service.category, "typical_hours": service.typical_hours}, _local_now(service.city, now)
             )
             db.add(ServiceSnapshot(
                 service_id=service.id, timestamp=now,

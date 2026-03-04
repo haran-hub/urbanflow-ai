@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
+from zoneinfo import ZoneInfo
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
@@ -82,7 +83,13 @@ async def overview(
     services_avg_wait = round(services_avg_wait / services_open) if services_open else 0
 
     now = datetime.utcnow()
-    hour = now.hour
+    _CITY_TIMEZONES = {
+        "San Francisco": "America/Los_Angeles",
+        "New York": "America/New_York",
+        "Austin": "America/Chicago",
+    }
+    local_now = now.replace(tzinfo=timezone.utc).astimezone(ZoneInfo(_CITY_TIMEZONES.get(city, "UTC")))
+    hour = local_now.hour
     if 7 <= hour < 9 or 17 <= hour < 19:
         rush_status = "Peak Rush Hour"
     elif 9 <= hour < 17:

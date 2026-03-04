@@ -1,11 +1,15 @@
 "use client";
 import { useEffect, useState, useCallback, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import BestTimeModal from "@/components/BestTimeModal";
 import Toast from "@/components/Toast";
 import { getEVStations, predictEV, recommendEV } from "@/lib/api";
 import type { EVStation, Recommendation } from "@/lib/types";
+import type { MapItem } from "@/components/CityMap";
+
+const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
 const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
   Available: { color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
@@ -31,6 +35,7 @@ function EVContent() {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [recommending, setRecommending] = useState(false);
   const [batteryPct, setBatteryPct] = useState(20);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   const fetchStations = useCallback(async () => {
     try {
@@ -80,6 +85,22 @@ function EVContent() {
             <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>{stations.length} stations in {city}</p>
           </div>
           <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+              <button
+                onClick={() => setViewMode("list")}
+                className="text-xs px-3 py-1.5 transition-all"
+                style={{ background: viewMode === "list" ? "rgba(245,158,11,0.15)" : "var(--card)", color: viewMode === "list" ? "#f59e0b" : "var(--muted)" }}
+              >
+                ☰ List
+              </button>
+              <button
+                onClick={() => setViewMode("map")}
+                className="text-xs px-3 py-1.5 transition-all"
+                style={{ background: viewMode === "map" ? "rgba(245,158,11,0.15)" : "var(--card)", color: viewMode === "map" ? "#f59e0b" : "var(--muted)" }}
+              >
+                ⊙ Map
+              </button>
+            </div>
             <div className="flex items-center gap-2">
               <label className="text-xs" style={{ color: "var(--muted)" }}>Battery %</label>
               <input
@@ -112,6 +133,15 @@ function EVContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[...Array(6)].map((_, i) => <div key={i} className="card p-5 h-40 animate-pulse" style={{ background: "var(--card2)" }} />)}
           </div>
+        ) : viewMode === "map" ? (
+          <CityMap items={stations.map((s): MapItem => ({
+            id: s.id,
+            name: s.name,
+            lat: s.lat,
+            lng: s.lng,
+            status: s.status === "Available" ? "green" : s.status === "Queue" ? "yellow" : "red",
+            metric: `${s.available_ports} / ${s.total_ports} ports available`,
+          }))} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {stations.map((s) => {

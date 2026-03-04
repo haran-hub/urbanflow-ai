@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useCallback, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import OccupancyBar from "@/components/OccupancyBar";
@@ -7,6 +8,9 @@ import BestTimeModal from "@/components/BestTimeModal";
 import Toast from "@/components/Toast";
 import { getParkingZones, predictParking, recommendParking } from "@/lib/api";
 import type { ParkingZone, Recommendation } from "@/lib/types";
+import type { MapItem } from "@/components/CityMap";
+
+const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
 const ZONE_ICONS: Record<string, string> = { garage: "🏢", lot: "⬜", street: "🛣" };
 
@@ -17,6 +21,7 @@ function ParkingContent() {
   const [loading, setLoading] = useState(true);
   const [bestTimeZone, setBestTimeZone] = useState<ParkingZone | null>(null);
   const [toast, setToast] = useState<string | null>(null);
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
 
   // Predict state
   const [predicting, setPredicting] = useState<string | null>(null);
@@ -86,7 +91,23 @@ function ParkingContent() {
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>{zones.length} zones in {city}</p>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-3 flex-wrap">
+            <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+              <button
+                onClick={() => setViewMode("list")}
+                className="text-xs px-3 py-1.5 transition-all"
+                style={{ background: viewMode === "list" ? "rgba(59,130,246,0.15)" : "var(--card)", color: viewMode === "list" ? "#60a5fa" : "var(--muted)" }}
+              >
+                ☰ List
+              </button>
+              <button
+                onClick={() => setViewMode("map")}
+                className="text-xs px-3 py-1.5 transition-all"
+                style={{ background: viewMode === "map" ? "rgba(59,130,246,0.15)" : "var(--card)", color: viewMode === "map" ? "#60a5fa" : "var(--muted)" }}
+              >
+                ⊙ Map
+              </button>
+            </div>
             <input
               type="datetime-local"
               value={arriveAt}
@@ -124,6 +145,15 @@ function ParkingContent() {
               <div key={i} className="card p-5 h-40 animate-pulse" style={{ background: "var(--card2)" }} />
             ))}
           </div>
+        ) : viewMode === "map" ? (
+          <CityMap items={zones.map((z): MapItem => ({
+            id: z.id,
+            name: z.name,
+            lat: z.lat,
+            lng: z.lng,
+            status: z.occupancy_pct > 0.8 ? "red" : z.occupancy_pct > 0.5 ? "yellow" : "green",
+            metric: `${z.available_spots} / ${z.total_spots} spots available`,
+          }))} />
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {zones.map((zone) => {

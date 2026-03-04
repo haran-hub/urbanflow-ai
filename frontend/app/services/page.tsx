@@ -1,11 +1,15 @@
 "use client";
 import { useEffect, useState, useCallback, Suspense } from "react";
+import dynamic from "next/dynamic";
 import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import BestTimeModal from "@/components/BestTimeModal";
 import Toast from "@/components/Toast";
 import { getServices, predictService } from "@/lib/api";
 import type { LocalService } from "@/lib/types";
+import type { MapItem } from "@/components/CityMap";
+
+const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
 const CAT_ICONS: Record<string, string> = {
   dmv: "🏛", hospital: "🏥", bank: "🏦", post_office: "📮", pharmacy: "💊",
@@ -29,6 +33,7 @@ function ServicesContent() {
   const [bestTimeService, setBestTimeService] = useState<LocalService | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
+  const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { wait: number; label: string; explain: string }>>({});
   const [arriveAt, setArriveAt] = useState(() => {
@@ -73,7 +78,25 @@ function ServicesContent() {
             </h1>
             <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>{services.length} services in {city}</p>
           </div>
-          <input type="datetime-local" value={arriveAt} onChange={e => setArriveAt(e.target.value)} className="text-xs" />
+          <div className="flex items-center gap-3">
+            <div className="flex rounded-lg overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+              <button
+                onClick={() => setViewMode("list")}
+                className="text-xs px-3 py-1.5 transition-all"
+                style={{ background: viewMode === "list" ? "rgba(168,85,247,0.15)" : "var(--card)", color: viewMode === "list" ? "#c084fc" : "var(--muted)" }}
+              >
+                ☰ List
+              </button>
+              <button
+                onClick={() => setViewMode("map")}
+                className="text-xs px-3 py-1.5 transition-all"
+                style={{ background: viewMode === "map" ? "rgba(168,85,247,0.15)" : "var(--card)", color: viewMode === "map" ? "#c084fc" : "var(--muted)" }}
+              >
+                ⊙ Map
+              </button>
+            </div>
+            <input type="datetime-local" value={arriveAt} onChange={e => setArriveAt(e.target.value)} className="text-xs" />
+          </div>
         </div>
 
         {/* Category filter */}
@@ -95,6 +118,15 @@ function ServicesContent() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[...Array(6)].map((_, i) => <div key={i} className="card p-5 h-36 animate-pulse" style={{ background: "var(--card2)" }} />)}
           </div>
+        ) : viewMode === "map" ? (
+          <CityMap items={services.map((s): MapItem => ({
+            id: s.id,
+            name: `${s.name}`,
+            lat: s.lat,
+            lng: s.lng,
+            status: s.is_open ? "green" : "gray",
+            metric: s.is_open ? `Open · ${s.estimated_wait_minutes} min wait` : "Closed",
+          }))} />
         ) : services.length === 0 ? (
           <div className="text-center py-16" style={{ color: "var(--muted)" }}>No services found for this category.</div>
         ) : (
