@@ -635,3 +635,95 @@ async def seed_all_real(db: AsyncSession) -> None:
             await seed_city_real(db, city)
         except Exception as e:
             logger.error(f"Failed to seed {city}: {e}")
+
+
+async def seed_category_for_city(db: AsyncSession, category: str, city_name: str) -> None:
+    """Seed a single category for one city. Used for incremental seeding."""
+    cfg = CITY_CONFIGS[city_name]
+    lat, lng, bbox = cfg["lat"], cfg["lng"], cfg["bbox"]
+
+    if category == "parking":
+        data = await fetch_parking_zones(city_name, bbox)
+        for p in data:
+            db.add(ParkingZone(
+                id=_uid(), city=city_name,
+                name=p["name"], lat=p["lat"], lng=p["lng"],
+                total_spots=p["total_spots"], zone_type=p["zone_type"],
+                hourly_rate=p["hourly_rate"], address=p["address"],
+            ))
+    elif category == "ev":
+        data = await fetch_ev_stations(city_name, lat, lng)
+        for e in data:
+            db.add(EVStation(
+                id=_uid(), city=city_name,
+                name=e["name"], lat=e["lat"], lng=e["lng"],
+                total_ports=e["total_ports"], port_types=e["port_types"],
+                network=e["network"], address=e["address"],
+            ))
+    elif category == "transit":
+        data = await fetch_transit_routes(city_name, bbox)
+        for t in data:
+            db.add(TransitRoute(
+                id=_uid(), city=city_name,
+                name=t["name"], route_type=t["route_type"],
+                stops=t["stops"], frequency_mins=t["frequency_mins"],
+            ))
+    elif category == "services":
+        data = await fetch_services(city_name, bbox)
+        for s in data:
+            db.add(LocalService(
+                id=_uid(), city=city_name,
+                name=s["name"], lat=s["lat"], lng=s["lng"],
+                category=s["category"], address=s["address"],
+                typical_hours=s["typical_hours"],
+            ))
+    elif category == "air":
+        data = await fetch_air_stations(city_name, lat, lng)
+        for a in data:
+            db.add(AirStation(
+                id=_uid(), city=city_name,
+                name=a["name"], lat=a["lat"], lng=a["lng"],
+                address=a["address"],
+            ))
+    elif category == "bikes":
+        data = await fetch_bike_stations(city_name, lat, lng)
+        for b in data:
+            db.add(BikeStation(
+                id=_uid(), city=city_name,
+                name=b["name"], lat=b["lat"], lng=b["lng"],
+                address=b["address"],
+                total_docks=b.get("total_docks", 12),
+                station_type=b.get("station_type", "bike"),
+                network=b.get("network", ""),
+            ))
+    elif category == "food_trucks":
+        data = await fetch_food_trucks(city_name, bbox)
+        for f in data:
+            db.add(FoodTruck(
+                id=_uid(), city=city_name,
+                name=f["name"], lat=f["lat"], lng=f["lng"],
+                address=f["address"],
+                cuisine=f.get("cuisine", "Various"),
+                typical_hours=f.get("typical_hours", ""),
+            ))
+    elif category == "noise":
+        data = await fetch_noise_zones(city_name, bbox)
+        for n in data:
+            db.add(NoiseZone(
+                id=_uid(), city=city_name,
+                name=n["name"], lat=n["lat"], lng=n["lng"],
+                address=n["address"],
+                zone_type=n.get("zone_type", "commercial"),
+            ))
+
+    await db.commit()
+    logger.info(f"Seeded category '{category}' for {city_name}.")
+
+
+async def seed_category_all_cities(db: AsyncSession, category: str) -> None:
+    """Seed a single category across all cities."""
+    for city in CITY_CONFIGS:
+        try:
+            await seed_category_for_city(db, category, city)
+        except Exception as e:
+            logger.error(f"Failed to seed {category} for {city}: {e}")
