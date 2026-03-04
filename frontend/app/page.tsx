@@ -110,7 +110,9 @@ export default function DashboardPage() {
                 value={`${o?.services.open_now ?? 0}/${o?.services.total ?? 0}`}
                 sub={`Avg wait: ${o?.services.avg_wait_minutes ?? 0} min`}
                 accent="purple"
-                trend="neutral"
+                trend={o && o.services.total > 0
+                  ? o.services.open_now / o.services.total >= 0.5 ? "good" : "bad"
+                  : "neutral"}
               />
             </div>
           )}
