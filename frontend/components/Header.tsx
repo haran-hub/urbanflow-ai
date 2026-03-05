@@ -6,7 +6,7 @@ import { useState } from "react";
 const CITIES = ["San Francisco", "New York", "Austin"];
 
 const NAV = [
-  { href: "/",           label: "Dashboard",   icon: "⬡" },
+  { href: "/dashboard",  label: "Dashboard",   icon: "⬡" },
   { href: "/parking",    label: "Parking",      icon: "🅿" },
   { href: "/ev",         label: "EV Charging",  icon: "⚡" },
   { href: "/transit",    label: "Transit",      icon: "🚇" },
@@ -65,7 +65,7 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
           <nav className="border-t border-[var(--border)] px-3 py-2 flex flex-col gap-0.5"
             style={{ background: "rgba(15,17,23,0.97)" }}>
             {NAV.map((n) => {
-              const href = n.href === "/" ? "/" : `${n.href}?city=${encodeURIComponent(city)}`;
+              const href = `${n.href}?city=${encodeURIComponent(city)}`;
               const active = pathname === n.href;
               return (
                 <Link key={n.href} href={href} onClick={() => setMobileOpen(false)}
@@ -102,7 +102,7 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
         {/* Nav */}
         <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto">
           {NAV.map((n) => {
-            const href = n.href === "/" ? "/" : `${n.href}?city=${encodeURIComponent(city)}`;
+            const href = `${n.href}?city=${encodeURIComponent(city)}`;
             const active = pathname === n.href;
             return (
               <Link key={n.href} href={href}

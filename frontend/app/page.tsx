@@ -1,440 +1,380 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
-import Header from "@/components/Header";
-import StatCard from "@/components/StatCard";
-import Toast from "@/components/Toast";
-import SurgeWidget from "@/components/SurgeWidget";
-import { getOverview, getPulseScore } from "@/lib/api";
-import { useWebSocket } from "@/hooks/useWebSocket";
-import { useDetectedCity } from "@/hooks/useDetectedCity";
-import type { DashboardOverview, PulseScore } from "@/lib/types";
 
-const RUSH_COLOR: Record<string, string> = {
-  "Peak Rush Hour": "#ef4444",
-  "Normal Hours": "#3b82f6",
-  "Off-Peak": "#22c55e",
-};
+const DOMAINS = [
+  { icon: "🅿",  label: "Smart Parking",    desc: "Real-time spot availability, occupancy predictions, AI recommendations",     color: "#3b82f6",  bg: "#3b82f610" },
+  { icon: "⚡",  label: "EV Charging",      desc: "Live port status, queue estimates, best charging options near you",           color: "#f59e0b",  bg: "#f59e0b10" },
+  { icon: "🚇",  label: "Transit",          desc: "Crowd levels, delay alerts, optimal departure windows",                       color: "#22c55e",  bg: "#22c55e10" },
+  { icon: "🏛",  label: "Local Services",   desc: "Hospitals, banks, pharmacies — predicted wait times",                         color: "#a855f7",  bg: "#a855f710" },
+  { icon: "🌬",  label: "Air Quality",      desc: "AQI, PM2.5, ozone, UV index, pollen — real-time sensors",                    color: "#06b6d4",  bg: "#06b6d410" },
+  { icon: "🚲",  label: "Bike Share",       desc: "Live dock availability, e-bikes, AI station recommendations via GBFS",        color: "#10b981",  bg: "#10b98110" },
+  { icon: "🚚",  label: "Food Trucks",      desc: "Open trucks, crowd levels, wait times by cuisine",                            color: "#f97316",  bg: "#f9731610" },
+  { icon: "🎵",  label: "Noise & Vibe",     desc: "Neighborhood energy, crowd density, night scene activity",                    color: "#ec4899",  bg: "#ec489910" },
+];
 
-export default function DashboardPage() {
-  const { city, setCity } = useDetectedCity();
-  const [overview, setOverview] = useState<DashboardOverview | null>(null);
-  const [pulse, setPulse] = useState<PulseScore | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [toast, setToast] = useState<string | null>(null);
+const AI_FEATURES = [
+  {
+    icon: "◎",
+    label: "City Pulse Score",
+    desc: "Composite 0–100 livability index computed in real time across all 8 domains — weighted by impact on daily life.",
+    color: "#3b82f6",
+    href: "/pulse",
+  },
+  {
+    icon: "💬",
+    label: "AI City Concierge",
+    desc: "Multi-turn chat powered by Claude. Answers questions with live entity-level data — actual names, addresses, real numbers.",
+    color: "#a78bfa",
+    href: "/concierge",
+  },
+  {
+    icon: "⚖",
+    label: "Live City Compare",
+    desc: "SF vs New York vs Austin head-to-head across 9 metrics. Real-time winner detection with per-metric crowns.",
+    color: "#22c55e",
+    href: "/compare",
+  },
+  {
+    icon: "⚡",
+    label: "Surge Predictor",
+    desc: "AI-powered early warnings for emerging congestion in parking, transit, and EV — with severity levels and actionable tips.",
+    color: "#f59e0b",
+    href: "/dashboard",
+  },
+  {
+    icon: "✦",
+    label: "AI Urban Planner",
+    desc: "Multi-modal travel plan across all domains. Tell it your needs and departure time — Claude builds the optimal route.",
+    color: "#f472b6",
+    href: "/plan",
+  },
+  {
+    icon: "🔮",
+    label: "Future AI Predict",
+    desc: "Predict occupancy, wait times, and crowd levels at any future time for any entity across the city.",
+    color: "#60a5fa",
+    href: "/dashboard",
+  },
+];
+
+const CITIES = [
+  { name: "San Francisco", emoji: "🌉", color: "#3b82f6" },
+  { name: "New York",      emoji: "🗽", color: "#f59e0b" },
+  { name: "Austin",        emoji: "🎸", color: "#22c55e" },
+];
+
+const STATS = [
+  { label: "Parking Zones",    value: "240+",  icon: "🅿",  color: "#3b82f6" },
+  { label: "EV Stations",      value: "180+",  icon: "⚡",  color: "#f59e0b" },
+  { label: "Transit Routes",   value: "90+",   icon: "🚇",  color: "#22c55e" },
+  { label: "AI Predictions",   value: "Real-time", icon: "✦", color: "#a78bfa" },
+];
+
+function AnimatedCounter({ target, suffix = "" }: { target: number; suffix?: string }) {
+  const [val, setVal] = useState(0);
+  const ref = useRef<HTMLSpanElement>(null);
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      ([e]) => {
+        if (!e.isIntersecting) return;
+        observer.disconnect();
+        let start = 0;
+        const step = Math.ceil(target / 60);
+        const timer = setInterval(() => {
+          start = Math.min(start + step, target);
+          setVal(start);
+          if (start >= target) clearInterval(timer);
+        }, 16);
+      },
+      { threshold: 0.5 }
+    );
+    if (ref.current) observer.observe(ref.current);
+    return () => observer.disconnect();
+  }, [target]);
+  return <span ref={ref}>{val}{suffix}</span>;
+}
+
+export default function LandingPage() {
+  const [activeCity, setActiveCity] = useState(0);
 
   useEffect(() => {
-    let cancelled = false;
-    setLoading(true);
-    getOverview(city)
-      .then((data) => { if (!cancelled) setOverview(data); })
-      .catch(() => {})
-      .finally(() => { if (!cancelled) setLoading(false); });
-    getPulseScore(city).then((d) => { if (!cancelled) setPulse(d); }).catch(() => {});
-    return () => { cancelled = true; };
-  }, [city]);
-
-  const cityRef = useRef(city);
-  cityRef.current = city;
-
-  useWebSocket(city, () => {
-    getOverview(cityRef.current).then(setOverview).catch(() => {});
-    getPulseScore(cityRef.current).then(setPulse).catch(() => {});
-    setToast("Live update received");
-  });
-
-  const o = overview;
+    const t = setInterval(() => setActiveCity((c) => (c + 1) % 3), 2500);
+    return () => clearInterval(t);
+  }, []);
 
   return (
-    <main className="min-h-screen pt-14 md:pt-0 md:pl-[220px]" style={{ background: "var(--bg)" }}>
-      <Header city={city} onCityChange={setCity} liveStatus="Live · refreshes on every visit" />
+    <div style={{ background: "#050508", color: "#e2e8f0", fontFamily: "-apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif", overflowX: "hidden" }}>
 
-      {/* Hero */}
-      <section className="pt-12 pb-8 px-4">
-        <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: o ? RUSH_COLOR[o.rush_status] || "#3b82f6" : "#64748b" }} />
-                <span className="text-xs font-medium" style={{ color: "var(--muted)" }}>
-                  {o?.rush_status ?? "Loading..."}
-                </span>
-              </div>
-              <h1 className="text-3xl font-bold" style={{ color: "var(--text)" }}>
-                {city} <span style={{ color: "var(--accent)" }}>Overview</span>
-              </h1>
-              <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-                AI-powered real-time city intelligence
-              </p>
-            </div>
-            <Link href="/plan" className="btn-primary text-sm flex items-center gap-2 self-start sm:self-auto">
-              ✦ Generate AI Plan
+      {/* ── NAV ─────────────────────────────────────────────────────────── */}
+      <nav style={{ position: "fixed", top: 0, left: 0, right: 0, zIndex: 100, background: "rgba(5,5,8,0.8)", backdropFilter: "blur(16px)", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+        <div style={{ maxWidth: 1200, margin: "0 auto", padding: "0 24px", height: 60, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 14, color: "#fff", boxShadow: "0 0 20px rgba(59,130,246,0.4)" }}>U</div>
+            <span style={{ fontWeight: 700, fontSize: 16 }}>UrbanFlow <span style={{ color: "#3b82f6" }}>AI</span></span>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <Link href="/dashboard" style={{ padding: "8px 20px", borderRadius: 8, background: "#3b82f6", color: "#fff", fontWeight: 600, fontSize: 14, textDecoration: "none", boxShadow: "0 0 16px rgba(59,130,246,0.35)" }}>
+              Launch App →
             </Link>
           </div>
-
-          {/* Stats Grid */}
-          {loading ? (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="card p-5 h-32 animate-pulse" style={{ background: "var(--card2)" }} />
-              ))}
-            </div>
-          ) : (
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-              <StatCard
-                icon="🅿"
-                label="Parking Available"
-                value={o?.parking.available_spots.toLocaleString() ?? "—"}
-                sub={o ? `${o.parking.zones_count} zones · ${o.parking.occupancy_pct.toFixed(0)}% full` : "—"}
-                accent="blue"
-                trend={o && o.parking.occupancy_pct < 70 ? "good" : "bad"}
-              />
-              <StatCard
-                icon="⚡"
-                label="EV Ports Available"
-                value={o?.ev_charging.available_ports ?? "—"}
-                sub={o ? `Avg wait: ${o.ev_charging.avg_wait_minutes} min · ${o.ev_charging.stations_count} stations` : "—"}
-                accent="yellow"
-                trend={o && o.ev_charging.available_ports > 0 ? "good" : "bad"}
-              />
-              <StatCard
-                icon="🚇"
-                label="Transit Crowd"
-                value={o ? `${o.transit.avg_crowd_level}%` : "—"}
-                sub={o ? `${o.transit.crowd_label} · ${o.transit.delayed_routes} routes delayed` : "—"}
-                accent={o && o.transit.avg_crowd_level > 70 ? "red" : "green"}
-                trend={o && o.transit.avg_crowd_level < 60 ? "good" : "bad"}
-              />
-              <StatCard
-                icon="🏛"
-                label="Services Open"
-                value={`${o?.services.open_now ?? 0}/${o?.services.total ?? 0}`}
-                sub={`Avg wait: ${o?.services.avg_wait_minutes ?? 0} min`}
-                accent="purple"
-                trend={o && o.services.total > 0
-                  ? o.services.open_now / o.services.total >= 0.5 ? "good" : "bad"
-                  : "neutral"}
-              />
-            </div>
-          )}
         </div>
-      </section>
+      </nav>
 
-      {/* Pulse + Surge row */}
-      <section className="px-4 pb-6">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Pulse mini-card */}
-          <Link href={`/pulse?city=${encodeURIComponent(city)}`} className="card p-4 flex items-center gap-4 hover:border-blue-500/40 transition-all group">
-            <div className="relative shrink-0" style={{ width: 64, height: 64 }}>
-              <svg width="64" height="64" viewBox="0 0 64 64">
-                <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
-                <circle
-                  cx="32" cy="32" r="26"
-                  fill="none"
-                  stroke={pulse?.color ?? "#3b82f6"}
-                  strokeWidth="6"
-                  strokeLinecap="round"
-                  strokeDasharray={`${((pulse?.pulse_score ?? 0) / 100) * 2 * Math.PI * 26} ${2 * Math.PI * 26}`}
-                  transform="rotate(-90 32 32)"
-                  style={{ filter: `drop-shadow(0 0 4px ${pulse?.color ?? "#3b82f6"})` }}
-                />
-              </svg>
-              <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-sm font-bold" style={{ color: pulse?.color ?? "#3b82f6" }}>
-                  {pulse?.pulse_score ?? "—"}
-                </span>
-              </div>
-            </div>
-            <div>
-              <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>City Pulse Score</p>
-              <p className="text-xs mt-0.5" style={{ color: pulse?.color ?? "var(--muted)" }}>
-                {pulse?.label ?? "Loading…"}
-              </p>
-              <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>Composite livability index →</p>
-            </div>
+      {/* ── HERO ────────────────────────────────────────────────────────── */}
+      <section style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: "100px 24px 60px", position: "relative", overflow: "hidden" }}>
+        {/* Background orbs */}
+        <div style={{ position: "absolute", top: "15%", left: "10%", width: 600, height: 600, borderRadius: "50%", background: "radial-gradient(circle, rgba(59,130,246,0.12) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", bottom: "10%", right: "5%", width: 500, height: 500, borderRadius: "50%", background: "radial-gradient(circle, rgba(139,92,246,0.1) 0%, transparent 70%)", pointerEvents: "none" }} />
+        <div style={{ position: "absolute", top: "40%", left: "50%", width: 400, height: 400, borderRadius: "50%", background: "radial-gradient(circle, rgba(34,197,94,0.06) 0%, transparent 70%)", pointerEvents: "none" }} />
+
+        {/* Live badge */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "6px 16px", borderRadius: 100, border: "1px solid rgba(34,197,94,0.3)", background: "rgba(34,197,94,0.06)", marginBottom: 32 }}>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#22c55e", display: "inline-block", boxShadow: "0 0 8px #22c55e", animation: "pulse 2s infinite" }} />
+          <span style={{ fontSize: 13, color: "#22c55e", fontWeight: 500 }}>Live data · San Francisco · New York · Austin</span>
+        </div>
+
+        {/* Headline */}
+        <h1 style={{ fontSize: "clamp(40px, 7vw, 80px)", fontWeight: 800, textAlign: "center", lineHeight: 1.1, marginBottom: 24, maxWidth: 900 }}>
+          AI-Powered{" "}
+          <span style={{ background: "linear-gradient(135deg,#3b82f6,#8b5cf6,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+            City Intelligence
+          </span>
+          <br />at Your Fingertips
+        </h1>
+
+        <p style={{ fontSize: "clamp(16px, 2vw, 20px)", color: "#94a3b8", textAlign: "center", maxWidth: 680, lineHeight: 1.7, marginBottom: 48 }}>
+          Real-time data across 8 urban domains — parking, transit, EV charging, air quality, bikes, food trucks, noise & vibe — powered by Claude AI.
+        </p>
+
+        {/* CTAs */}
+        <div style={{ display: "flex", gap: 14, flexWrap: "wrap", justifyContent: "center", marginBottom: 72 }}>
+          <Link href="/dashboard" style={{ padding: "14px 32px", borderRadius: 12, background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "#fff", fontWeight: 700, fontSize: 16, textDecoration: "none", boxShadow: "0 0 32px rgba(59,130,246,0.4)", letterSpacing: 0.3 }}>
+            Launch App →
           </Link>
+          <Link href="/concierge" style={{ padding: "14px 28px", borderRadius: 12, background: "transparent", color: "#e2e8f0", fontWeight: 600, fontSize: 16, textDecoration: "none", border: "1px solid rgba(255,255,255,0.15)" }}>
+            💬 Ask AI Concierge
+          </Link>
+        </div>
 
-          {/* Surge widget */}
-          <SurgeWidget city={city} />
+        {/* Floating stat pills */}
+        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", justifyContent: "center" }}>
+          {STATS.map((s) => (
+            <div key={s.label} style={{ display: "flex", alignItems: "center", gap: 10, padding: "12px 20px", borderRadius: 12, background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", backdropFilter: "blur(8px)" }}>
+              <span style={{ fontSize: 20 }}>{s.icon}</span>
+              <div>
+                <div style={{ fontSize: 18, fontWeight: 700, color: s.color }}>{s.value}</div>
+                <div style={{ fontSize: 11, color: "#64748b" }}>{s.label}</div>
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* City switcher preview */}
+        <div style={{ display: "flex", gap: 12, marginTop: 40, justifyContent: "center" }}>
+          {CITIES.map((c, i) => (
+            <button key={c.name} onClick={() => setActiveCity(i)}
+              style={{ padding: "8px 20px", borderRadius: 100, border: `1px solid ${activeCity === i ? c.color : "rgba(255,255,255,0.1)"}`, background: activeCity === i ? `${c.color}18` : "transparent", color: activeCity === i ? c.color : "#64748b", fontWeight: 600, fontSize: 13, cursor: "pointer", transition: "all 0.3s" }}>
+              {c.emoji} {c.name}
+            </button>
+          ))}
         </div>
       </section>
 
-      {/* Quick Access */}
-      <section className="px-4 pb-16">
-        <div className="max-w-6xl mx-auto">
-          <h2 className="text-sm font-semibold mb-4" style={{ color: "var(--muted)" }}>EXPLORE</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      {/* ── STATS ROW ───────────────────────────────────────────────────── */}
+      <section style={{ padding: "40px 24px", borderTop: "1px solid rgba(255,255,255,0.05)", borderBottom: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto", display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 24, textAlign: "center" }}>
+          {[
+            { n: 8,    suffix: " domains",    label: "Urban domains tracked" },
+            { n: 3,    suffix: " cities",     label: "Cities covered live" },
+            { n: 510,  suffix: "+",           label: "Real locations seeded" },
+            { n: 100,  suffix: "%",           label: "On-demand refresh" },
+          ].map((s) => (
+            <div key={s.label}>
+              <div style={{ fontSize: 42, fontWeight: 800, color: "#3b82f6", lineHeight: 1 }}>
+                <AnimatedCounter target={s.n} suffix={s.suffix} />
+              </div>
+              <div style={{ fontSize: 13, color: "#64748b", marginTop: 6 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+      </section>
 
-            {/* ── Parking ── */}
-            <Link href={`/parking?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-parking" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "#3b82f615", color: "#3b82f6" }}>🅿</div>
-              {/* Parking spot mini-grid */}
-              <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
-                {(["#22c55e","#22c55e","#22c55e","#22c55e",
-                   "#22c55e","#f59e0b","#f59e0b","#22c55e",
-                   "#ef4444","#ef4444","#f59e0b","#22c55e"] as const).map((color, i) => (
-                  <div key={i} className="p-spot rounded-sm"
-                    style={{ height: 7, background: color, "--d": `${i * 0.045}s` } as React.CSSProperties} />
-                ))}
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Parking</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Find available spots, predict occupancy, get recommendations</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#3b82f6" }}>
-                Explore <span>→</span>
-              </div>
-            </Link>
-
-            {/* ── EV Charging ── */}
-            <Link href={`/ev?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-ev" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "#f59e0b15", color: "#f59e0b" }}>⚡</div>
-              {/* Animated battery */}
-              <div className="flex items-center gap-2">
-                <div style={{ flex: 1, height: 14, border: "1.5px solid rgba(245,158,11,0.35)", borderRadius: 3, padding: 2, background: "rgba(245,158,11,0.04)" }}>
-                  <div className="ev-charge-bar" style={{ height: "100%", width: "10%", background: "linear-gradient(90deg,#f59e0b,#fbbf24)", borderRadius: 2 }} />
-                </div>
-                <div style={{ width: 5, height: 8, background: "rgba(245,158,11,0.45)", borderRadius: "0 2px 2px 0", marginLeft: -1 }} />
-                <span className="ev-bolt" style={{ fontSize: 20, color: "#f59e0b", lineHeight: 1 }}>⚡</span>
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>EV Charging</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Check station availability, wait times, best charging options</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#f59e0b" }}>
-                Explore <span>→</span>
-              </div>
-            </Link>
-
-            {/* ── Transit ── */}
-            <Link href={`/transit?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-transit" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "#22c55e15", color: "#22c55e" }}>🚇</div>
-              {/* Animated track + train */}
-              <div style={{ position: "relative", height: 24, overflow: "hidden" }}>
-                <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1.5, background: "rgba(34,197,94,0.2)", transform: "translateY(-50%)" }} />
-                {[0,1,2,3].map(i => (
-                  <div key={i} className="stop-dot" style={{
-                    position: "absolute", top: "50%",
-                    left: `${10 + i * 25}%`,
-                    width: 7, height: 7, borderRadius: "50%",
-                    background: "rgba(34,197,94,0.25)",
-                    "--d": `${i * 0.38}s`,
-                  } as React.CSSProperties} />
-                ))}
-                <span className="transit-train" style={{ position: "absolute", top: "50%", fontSize: 16, lineHeight: 1, userSelect: "none" }}>🚇</span>
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Transit</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Live crowd levels, delays, optimal departure times</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#22c55e" }}>
-                Explore <span>→</span>
-              </div>
-            </Link>
-
-            {/* ── Local Services ── */}
-            <Link href={`/services?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-services" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "#a855f715", color: "#a855f7" }}>🏛</div>
-              {/* Service icons that burst outward */}
-              <div style={{ position: "relative", height: 30 }}>
-                {([
-                  { icon: "🏥", tx: "-22px", ty: "-10px", d: "0s" },
-                  { icon: "💊", tx:  "22px", ty: "-10px", d: "0.08s" },
-                  { icon: "🏦", tx: "-22px", ty:  "10px", d: "0.16s" },
-                  { icon: "📮", tx:  "22px", ty:  "10px", d: "0.24s" },
-                ]).map((s, i) => (
-                  <span key={i} className="svc-icon" style={{
-                    position: "absolute", top: "50%", left: "50%",
-                    fontSize: 15, marginTop: -8, marginLeft: -8,
-                    "--tx": s.tx, "--ty": s.ty, "--d": s.d,
-                  } as React.CSSProperties}>{s.icon}</span>
-                ))}
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Local Services</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>DMV, hospitals, banks — predicted wait times</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#a855f7" }}>
-                Explore <span>→</span>
-              </div>
-            </Link>
-
-            {/* ── Air Quality ── */}
-            <Link href={`/air?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-air" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "#06b6d415", color: "#06b6d4" }}>🌬</div>
-              <div className="flex items-end gap-1" style={{ height: 28 }}>
-                {[50, 35, 65, 45, 55, 30, 70].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-sm air-bar"
-                    style={{ height: h / 4, background: h < 40 ? "rgba(34,197,94,0.6)" : h < 60 ? "rgba(234,179,8,0.6)" : "rgba(239,68,68,0.6)", "--d": `${i * 0.04}s` } as React.CSSProperties} />
-                ))}
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Air Quality</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>AQI, PM2.5, pollen, UV index — real-time monitoring</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#06b6d4" }}>
-                Explore <span>→</span>
-              </div>
-            </Link>
-
-            {/* ── Bikes & Scooters ── */}
-            <Link href={`/bikes?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-bikes" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "#10b98115", color: "#10b981" }}>🚲</div>
-              <div className="flex items-center justify-center gap-1.5 py-1">
-                {[0, 1, 2, 3, 4].map(i => (
-                  <div key={i} className="w-2.5 h-2.5 rounded-full bike-dot"
-                    style={{ background: i < 3 ? "#10b981" : "rgba(16,185,129,0.2)", "--d": `${i * 0.07}s` } as React.CSSProperties} />
-                ))}
-                <span className="text-xs ml-1" style={{ color: "#10b981" }}>3/5 bikes</span>
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Bikes & Scooters</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Live dock availability, e-bikes, AI station recommendations</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#10b981" }}>
-                Explore <span>→</span>
-              </div>
-            </Link>
-
-            {/* ── Food Trucks ── */}
-            <Link href={`/food-trucks?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-food" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "#f9731615", color: "#f97316" }}>🚚</div>
-              <div className="flex items-center gap-2 text-xl">
-                {["🌮", "🍜", "🥙", "🧇"].map((icon, i) => (
-                  <span key={i} className="food-icon" style={{ "--d": `${i * 0.08}s` } as React.CSSProperties}>{icon}</span>
-                ))}
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Food Trucks</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Open trucks, crowd levels, wait times by cuisine</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#f97316" }}>
-                Explore <span>→</span>
-              </div>
-            </Link>
-
-            {/* ── Noise & Vibe ── */}
-            <Link href={`/noise?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer explore-noise" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "#ec489915", color: "#ec4899" }}>🎵</div>
-              <div className="flex items-end gap-0.5" style={{ height: 28 }}>
-                {[30, 55, 45, 75, 60, 80, 50, 40, 65, 35].map((h, i) => (
-                  <div key={i} className="flex-1 rounded-sm noise-bar"
-                    style={{ height: `${h}%`, background: `rgba(236,72,153,${0.3 + h / 200})`, "--d": `${i * 0.07}s` } as React.CSSProperties} />
-                ))}
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Noise & Vibe</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Neighborhood energy, crowd density, night scene activity</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#ec4899" }}>
-                Explore <span>→</span>
-              </div>
-            </Link>
-
+      {/* ── 8 DOMAINS ───────────────────────────────────────────────────── */}
+      <section style={{ padding: "100px 24px" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 64 }}>
+            <p style={{ fontSize: 13, color: "#3b82f6", fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>8 Urban Domains</p>
+            <h2 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, lineHeight: 1.2 }}>
+              Everything happening in your city,<br />
+              <span style={{ color: "#3b82f6" }}>right now</span>
+            </h2>
+            <p style={{ color: "#64748b", fontSize: 16, marginTop: 16, maxWidth: 560, margin: "16px auto 0" }}>
+              Real data from OpenStreetMap, Open Charge Map, OpenAQ, GBFS, and 511.org — simulated with time-aware patterns for a live experience.
+            </p>
           </div>
 
-          {/* ── Unique Features Row ── */}
-          <h2 className="text-sm font-semibold mt-8 mb-4" style={{ color: "var(--muted)" }}>UNIQUE FEATURES</h2>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-
-            {/* City Pulse */}
-            <Link href={`/pulse?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>◎</div>
-              <div className="flex items-center justify-center">
-                <div className="relative" style={{ width: 56, height: 56 }}>
-                  <svg width="56" height="56" viewBox="0 0 56 56">
-                    <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
-                    <circle cx="28" cy="28" r="22" fill="none" stroke={pulse?.color ?? "#3b82f6"}
-                      strokeWidth="5" strokeLinecap="round"
-                      strokeDasharray={`${((pulse?.pulse_score ?? 72) / 100) * 2 * Math.PI * 22} ${2 * Math.PI * 22}`}
-                      transform="rotate(-90 28 28)"
-                      style={{ filter: `drop-shadow(0 0 4px ${pulse?.color ?? "#3b82f6"})` }} />
-                  </svg>
-                  <div className="absolute inset-0 flex items-center justify-center">
-                    <span className="text-xs font-bold" style={{ color: pulse?.color ?? "#3b82f6" }}>
-                      {pulse?.pulse_score ?? "—"}
-                    </span>
-                  </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(250px,1fr))", gap: 20 }}>
+            {DOMAINS.map((d) => (
+              <Link key={d.label} href={`/dashboard`}
+                style={{ padding: "28px 24px", borderRadius: 16, background: "#0d0d14", border: "1px solid rgba(255,255,255,0.07)", textDecoration: "none", display: "flex", flexDirection: "column", gap: 16, transition: "all 0.2s", cursor: "pointer" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = d.color + "50"; (e.currentTarget as HTMLElement).style.background = d.bg; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)"; (e.currentTarget as HTMLElement).style.background = "#0d0d14"; }}
+              >
+                <div style={{ width: 44, height: 44, borderRadius: 12, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, background: d.bg, border: `1px solid ${d.color}25` }}>{d.icon}</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: "#e2e8f0", marginBottom: 8 }}>{d.label}</div>
+                  <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.6 }}>{d.desc}</div>
                 </div>
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>City Pulse Score</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Composite livability index across all 8 urban domains in real-time</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#3b82f6" }}>
-                View Score <span>→</span>
-              </div>
-            </Link>
-
-            {/* AI Concierge */}
-            <Link href={`/concierge?city=${encodeURIComponent(city)}`}
-              className="card p-5 flex flex-col gap-3 group cursor-pointer" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "rgba(139,92,246,0.1)", color: "#a78bfa" }}>💬</div>
-              <div className="flex flex-col gap-1.5">
-                {["Where should I park?", "Is the air safe for a run?", "Best transit route?"].map((q, i) => (
-                  <div key={i} className="px-2 py-1 rounded-lg text-xs" style={{ background: "var(--card2)", color: "var(--muted)" }}>
-                    {q}
-                  </div>
-                ))}
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>AI City Concierge</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Ask anything about city conditions — Claude answers with live data</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#a78bfa" }}>
-                Ask Now <span>→</span>
-              </div>
-            </Link>
-
-            {/* City Compare */}
-            <Link href="/compare"
-              className="card p-5 flex flex-col gap-3 group cursor-pointer" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
-                style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>⚖</div>
-              <div className="flex items-center justify-around py-1">
-                {["🌉", "🗽", "🎸"].map((flag, i) => (
-                  <div key={i} className="flex flex-col items-center gap-1">
-                    <span className="text-xl">{flag}</span>
-                    <div className="w-8 rounded-sm" style={{
-                      height: [36, 28, 44][i],
-                      background: ["rgba(59,130,246,0.5)", "rgba(245,158,11,0.5)", "rgba(34,197,94,0.5)"][i],
-                    }} />
-                  </div>
-                ))}
-              </div>
-              <div>
-                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Live City Compare</p>
-                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>SF vs NY vs Austin — who's winning right now across all metrics?</p>
-              </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#22c55e" }}>
-                Compare <span>→</span>
-              </div>
-            </Link>
-
+                <div style={{ fontSize: 13, color: d.color, fontWeight: 600, marginTop: "auto" }}>Explore →</div>
+              </Link>
+            ))}
           </div>
         </div>
       </section>
 
-      {toast && <Toast message={toast} type="info" onClose={() => setToast(null)} />}
-    </main>
+      {/* ── AI FEATURES ─────────────────────────────────────────────────── */}
+      <section style={{ padding: "80px 24px", background: "rgba(255,255,255,0.015)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 64 }}>
+            <p style={{ fontSize: 13, color: "#a78bfa", fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>Unique AI Features</p>
+            <h2 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, lineHeight: 1.2 }}>
+              Not just data —{" "}
+              <span style={{ background: "linear-gradient(135deg,#a78bfa,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>intelligence</span>
+            </h2>
+            <p style={{ color: "#64748b", fontSize: 16, marginTop: 16, maxWidth: 520, margin: "16px auto 0" }}>
+              Claude AI turns raw city data into specific, actionable answers — with real names, actual numbers, and live context.
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(300px,1fr))", gap: 20 }}>
+            {AI_FEATURES.map((f) => (
+              <Link key={f.label} href={f.href}
+                style={{ padding: "28px 24px", borderRadius: 16, background: "#0d0d14", border: "1px solid rgba(255,255,255,0.07)", textDecoration: "none", display: "flex", flexDirection: "column", gap: 14, transition: "all 0.2s" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = f.color + "50"; (e.currentTarget as HTMLElement).style.transform = "translateY(-2px)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = "rgba(255,255,255,0.07)"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
+              >
+                <div style={{ fontSize: 28 }}>{f.icon}</div>
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: 16, color: f.color, marginBottom: 8 }}>{f.label}</div>
+                  <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.7 }}>{f.desc}</div>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── CITIES SHOWCASE ─────────────────────────────────────────────── */}
+      <section style={{ padding: "100px 24px" }}>
+        <div style={{ maxWidth: 1100, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <h2 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800 }}>
+              Three cities.{" "}
+              <span style={{ color: "#22c55e" }}>One dashboard.</span>
+            </h2>
+            <p style={{ color: "#64748b", fontSize: 16, marginTop: 16 }}>
+              Switch cities instantly — data refreshes on every visit.
+            </p>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(300px,1fr))", gap: 24 }}>
+            {[
+              { ...CITIES[0], desc: "Bay Area real-time transit via 511.org, OCM EV stations, Bay Wheels GBFS bikes", metrics: ["BART + Muni routes", "ChargePoint & Blink", "Bay Wheels docks"] },
+              { ...CITIES[1], desc: "NYC subway + MTA routes, Citi Bike live docks, Manhattan EV charging", metrics: ["Subway + MTA buses", "Citi Bike network", "NYC EV grid"] },
+              { ...CITIES[2], desc: "Austin MetroBike, ACC-area EV stations, downtown food truck scene", metrics: ["MetroBike GBFS", "Austin EV corridors", "6th Street vibe"] },
+            ].map((c) => (
+              <Link key={c.name} href={`/dashboard?city=${encodeURIComponent(c.name)}`}
+                style={{ padding: "32px 28px", borderRadius: 20, background: `linear-gradient(135deg, ${c.color}0a, #0d0d14)`, border: `1px solid ${c.color}25`, textDecoration: "none", display: "flex", flexDirection: "column", gap: 20, transition: "all 0.2s" }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLElement).style.borderColor = c.color + "60"; (e.currentTarget as HTMLElement).style.transform = "translateY(-3px)"; }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLElement).style.borderColor = c.color + "25"; (e.currentTarget as HTMLElement).style.transform = "translateY(0)"; }}
+              >
+                <div style={{ fontSize: 40 }}>{c.emoji}</div>
+                <div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: "#e2e8f0", marginBottom: 8 }}>{c.name}</div>
+                  <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.7 }}>{c.desc}</div>
+                </div>
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  {c.metrics.map((m) => (
+                    <div key={m} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13 }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: c.color, display: "inline-block", flexShrink: 0 }} />
+                      <span style={{ color: "#94a3b8" }}>{m}</span>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ fontSize: 13, color: c.color, fontWeight: 700 }}>Open {c.name} →</div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── HOW IT WORKS ────────────────────────────────────────────────── */}
+      <section style={{ padding: "80px 24px", background: "rgba(255,255,255,0.015)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+        <div style={{ maxWidth: 860, margin: "0 auto", textAlign: "center" }}>
+          <p style={{ fontSize: 13, color: "#f59e0b", fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>How it works</p>
+          <h2 style={{ fontSize: "clamp(24px, 4vw, 40px)", fontWeight: 800, marginBottom: 56 }}>Data refresh on every visit</h2>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(220px,1fr))", gap: 32, textAlign: "left" }}>
+            {[
+              { step: "01", title: "Open any page", desc: "Every GET request triggers an on-demand snapshot refresh for your city — data is never stale.", color: "#3b82f6" },
+              { step: "02", title: "Live simulation", desc: "Time-aware engine generates occupancy, wait times, and crowd levels based on rush hours and city timezone.", color: "#a78bfa" },
+              { step: "03", title: "AI enrichment", desc: "Claude answers with actual entity names, real numbers, and specific addresses from the live snapshot.", color: "#22c55e" },
+              { step: "04", title: "WebSocket push", desc: "Dashboard auto-refreshes when new snapshots are broadcast — no manual reload needed.", color: "#f59e0b" },
+            ].map((s) => (
+              <div key={s.step} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: s.color, letterSpacing: 1 }}>{s.step}</div>
+                <div style={{ fontSize: 16, fontWeight: 700, color: "#e2e8f0" }}>{s.title}</div>
+                <div style={{ fontSize: 13, color: "#64748b", lineHeight: 1.7 }}>{s.desc}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── FINAL CTA ───────────────────────────────────────────────────── */}
+      <section style={{ padding: "120px 24px", textAlign: "center", position: "relative", overflow: "hidden" }}>
+        <div style={{ position: "absolute", inset: 0, background: "radial-gradient(ellipse at 50% 50%, rgba(59,130,246,0.08) 0%, transparent 65%)", pointerEvents: "none" }} />
+        <div style={{ position: "relative" }}>
+          <h2 style={{ fontSize: "clamp(32px, 6vw, 64px)", fontWeight: 800, lineHeight: 1.1, marginBottom: 24 }}>
+            Your city, in real time.<br />
+            <span style={{ background: "linear-gradient(135deg,#3b82f6,#8b5cf6)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>
+              Powered by AI.
+            </span>
+          </h2>
+          <p style={{ color: "#64748b", fontSize: 18, marginBottom: 48, maxWidth: 500, margin: "0 auto 48px" }}>
+            Auto-detects your nearest city. Real data, live scores, and Claude AI — ready the moment you open it.
+          </p>
+          <Link href="/dashboard" style={{ display: "inline-block", padding: "18px 48px", borderRadius: 16, background: "linear-gradient(135deg,#3b82f6,#6366f1)", color: "#fff", fontWeight: 800, fontSize: 18, textDecoration: "none", boxShadow: "0 0 48px rgba(59,130,246,0.5)", letterSpacing: 0.5 }}>
+            Launch UrbanFlow AI →
+          </Link>
+          <p style={{ color: "#374151", fontSize: 13, marginTop: 20 }}>Free · No account needed · Auto city detection</p>
+        </div>
+      </section>
+
+      {/* ── FOOTER ──────────────────────────────────────────────────────── */}
+      <footer style={{ padding: "32px 24px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, maxWidth: 1100, margin: "0 auto" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div style={{ width: 28, height: 28, borderRadius: 8, background: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff" }}>U</div>
+          <span style={{ fontSize: 14, color: "#475569" }}>UrbanFlow AI — real-time city intelligence</span>
+        </div>
+        <div style={{ display: "flex", gap: 24 }}>
+          {[
+            { label: "Dashboard", href: "/dashboard" },
+            { label: "AI Concierge", href: "/concierge" },
+            { label: "City Compare", href: "/compare" },
+            { label: "City Pulse", href: "/pulse" },
+          ].map((l) => (
+            <Link key={l.label} href={l.href} style={{ fontSize: 13, color: "#475569", textDecoration: "none" }}>{l.label}</Link>
+          ))}
+        </div>
+      </footer>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 1; }
+          50% { opacity: 0.4; }
+        }
+      `}</style>
+    </div>
   );
 }

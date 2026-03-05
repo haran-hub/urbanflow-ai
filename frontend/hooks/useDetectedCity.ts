@@ -1,7 +1,9 @@
 "use client";
 import { useEffect, useState } from "react";
 
-const STORAGE_KEY = "urbanflow_city";
+const STORAGE_KEY  = "urbanflow_city";       // current city value
+const MANUAL_KEY   = "urbanflow_city_manual"; // set only on explicit user selection
+
 const SUPPORTED_CITIES = ["San Francisco", "New York", "Austin"] as const;
 type City = (typeof SUPPORTED_CITIES)[number];
 
@@ -21,57 +23,55 @@ function nearestCity(lat: number, lng: number): City {
   return best;
 }
 
-function readSaved(): string | null {
+/** Returns the manually-saved city, or null if city was auto-detected (not user-chosen). */
+function readManual(): string | null {
   if (typeof window === "undefined") return null;
+  if (!localStorage.getItem(MANUAL_KEY)) return null;
   const saved = localStorage.getItem(STORAGE_KEY);
   return saved && SUPPORTED_CITIES.includes(saved as City) ? saved : null;
 }
 
 /**
  * Returns the best city for the current user.
- * Priority: urlCity param > localStorage saved preference > geolocation > "San Francisco"
+ * Priority: urlCity param > manual localStorage > geolocation > "San Francisco"
  *
- * Reads localStorage synchronously on first render to avoid SF→Austin flash.
+ * Only manual city selections (via setCity) are persisted across sessions.
+ * Geolocation runs every visit if no manual preference — so location stays fresh.
  */
 export function useDetectedCity(urlCity?: string | null) {
-  // Initialise synchronously from localStorage so there's no "SF flash"
-  // before the useEffect runs — prevents stale fetches with wrong city.
   const [city, setCityState] = useState<string>(() => {
     if (urlCity) return urlCity;
-    return readSaved() ?? "San Francisco";
+    return readManual() ?? "San Francisco";
   });
 
   useEffect(() => {
-    // URL param always wins
     if (urlCity) {
-      localStorage.setItem(STORAGE_KEY, urlCity);
       setCityState(urlCity);
       return;
     }
 
-    // Saved preference already applied in useState initializer
-    const saved = readSaved();
-    if (saved) {
-      // already set, nothing to do
-      return;
-    }
+    // If the user explicitly chose a city, always respect it
+    if (readManual()) return;
 
-    // No saved preference — try geolocation
+    // No manual preference — try geolocation every visit
     if (!navigator.geolocation) return;
     navigator.geolocation.getCurrentPosition(
       ({ coords }) => {
         const detected = nearestCity(coords.latitude, coords.longitude);
+        // Store value but NOT the manual flag — so geolocation re-runs next visit
         localStorage.setItem(STORAGE_KEY, detected);
         setCityState(detected);
       },
-      () => { /* permission denied — keep default */ },
-      { timeout: 5000, maximumAge: 60_000 },
+      () => { /* permission denied or timeout — keep default */ },
+      { timeout: 6000, maximumAge: 30_000 },
     );
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlCity]);
 
+  /** Call this when the user explicitly picks a city from the UI. */
   const setCity = (c: string) => {
     localStorage.setItem(STORAGE_KEY, c);
+    localStorage.setItem(MANUAL_KEY, "1"); // marks as manual — geolocation won't override
     setCityState(c);
   };
 
