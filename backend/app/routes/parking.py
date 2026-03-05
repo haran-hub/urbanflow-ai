@@ -35,7 +35,7 @@ def _zone_status(zone: ParkingZone, snap: ParkingSnapshot | None) -> dict:
         "total_spots": zone.total_spots,
         "available_spots": snap.available_spots if snap else zone.total_spots,
         "occupancy_pct": round(snap.occupancy_pct * 100, 1) if snap else 0.0,
-        "last_updated": snap.timestamp.isoformat() if snap else None,
+        "last_updated": snap.timestamp.isoformat() + "Z" if snap else None,
     }
 
 
@@ -91,7 +91,7 @@ async def zone_status(zone_id: str, db: AsyncSession = Depends(get_db)):
 
     current = snaps[0] if snaps else None
     history = [
-        {"timestamp": s.timestamp.isoformat(), "available_spots": s.available_spots, "occupancy_pct": round(s.occupancy_pct * 100, 1)}
+        {"timestamp": s.timestamp.isoformat() + "Z", "available_spots": s.available_spots, "occupancy_pct": round(s.occupancy_pct * 100, 1)}
         for s in reversed(snaps)
     ]
     return {**_zone_status(zone, current), "history": history}
@@ -121,7 +121,7 @@ async def predict_zone(
         )
     ).scalars().all()
 
-    snap_dicts = [{"timestamp": s.timestamp.isoformat(), "occupancy_pct": s.occupancy_pct} for s in snaps]
+    snap_dicts = [{"timestamp": s.timestamp.isoformat() + "Z", "occupancy_pct": s.occupancy_pct} for s in snaps]
     entity = {"id": zone.id, "name": zone.name, "zone_type": zone.zone_type, "total_spots": zone.total_spots}
 
     prediction = await predict_availability("parking", entity, target, snap_dicts)

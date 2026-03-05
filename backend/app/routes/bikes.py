@@ -36,7 +36,7 @@ def _station_status(station: BikeStation, snap: BikeSnapshot | None) -> dict:
         "available_ebikes": snap.available_ebikes if snap else 0,
         "available_docks": snap.available_docks if snap else station.total_docks,
         "is_renting": snap.is_renting if snap else True,
-        "last_updated": snap.timestamp.isoformat() if snap else None,
+        "last_updated": snap.timestamp.isoformat() + "Z" if snap else None,
     }
 
 
@@ -82,7 +82,7 @@ async def station_status(station_id: str, db: AsyncSession = Depends(get_db)):
     current = snaps[0] if snaps else None
     history = [
         {
-            "timestamp": s.timestamp.isoformat(),
+            "timestamp": s.timestamp.isoformat() + "Z",
             "available_bikes": s.available_bikes,
             "available_ebikes": s.available_ebikes,
             "available_docks": s.available_docks,

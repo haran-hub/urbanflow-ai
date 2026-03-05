@@ -30,7 +30,7 @@ def _station_status(station: AirStation, snap: AirSnapshot | None) -> dict:
         "pollen_label": POLLEN_LABELS[snap.pollen_level] if snap else "None",
         "uv_index": snap.uv_index if snap else 0.0,
         "category": snap.category if snap else "Good",
-        "last_updated": snap.timestamp.isoformat() if snap else None,
+        "last_updated": snap.timestamp.isoformat() + "Z" if snap else None,
     }
 
 
@@ -90,7 +90,7 @@ async def station_status(station_id: str, db: AsyncSession = Depends(get_db)):
     current = snaps[0] if snaps else None
     history = [
         {
-            "timestamp": s.timestamp.isoformat(),
+            "timestamp": s.timestamp.isoformat() + "Z",
             "aqi": s.aqi,
             "pm25": s.pm25,
             "pm10": s.pm10,
@@ -131,7 +131,7 @@ async def predict_station(
     ).scalars().all()
 
     snap_dicts = [
-        {"timestamp": s.timestamp.isoformat(), "aqi": s.aqi, "pm25": s.pm25, "category": s.category}
+        {"timestamp": s.timestamp.isoformat() + "Z", "aqi": s.aqi, "pm25": s.pm25, "category": s.category}
         for s in snaps
     ]
     entity = {"id": station.id, "name": station.name, "city": station.city}

@@ -36,7 +36,7 @@ def _route_status(route: TransitRoute, snap: TransitSnapshot | None) -> dict:
         "crowd_label": _crowd_label(level),
         "delay_minutes": snap.delay_minutes if snap else 0,
         "next_arrival_mins": snap.next_arrival_mins if snap else route.frequency_mins,
-        "last_updated": snap.timestamp.isoformat() if snap else None,
+        "last_updated": snap.timestamp.isoformat() + "Z" if snap else None,
     }
 
 
@@ -81,7 +81,7 @@ async def route_status(route_id: str, db: AsyncSession = Depends(get_db)):
     current = snaps[0] if snaps else None
     history = [
         {
-            "timestamp": s.timestamp.isoformat(),
+            "timestamp": s.timestamp.isoformat() + "Z",
             "occupancy_level": s.occupancy_level,
             "crowd_label": _crowd_label(s.occupancy_level),
             "delay_minutes": s.delay_minutes,
@@ -115,7 +115,7 @@ async def predict_route(
         )
     ).scalars().all()
 
-    snap_dicts = [{"timestamp": s.timestamp.isoformat(), "occupancy_level": s.occupancy_level, "delay_minutes": s.delay_minutes} for s in snaps]
+    snap_dicts = [{"timestamp": s.timestamp.isoformat() + "Z", "occupancy_level": s.occupancy_level, "delay_minutes": s.delay_minutes} for s in snaps]
     entity = {"id": route.id, "name": route.name, "route_type": route.route_type, "frequency_mins": route.frequency_mins}
 
     prediction = await predict_availability("transit", entity, target, snap_dicts)

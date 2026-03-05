@@ -38,7 +38,7 @@ def _truck_status(truck: FoodTruck, snap: FoodTruckSnapshot | None) -> dict:
         "wait_minutes": wait,
         "crowd_level": snap.crowd_level if snap else 0,
         "wait_label": _wait_label(wait),
-        "last_updated": snap.timestamp.isoformat() if snap else None,
+        "last_updated": snap.timestamp.isoformat() + "Z" if snap else None,
     }
 
 
@@ -90,7 +90,7 @@ async def truck_status(truck_id: str, db: AsyncSession = Depends(get_db)):
     current = snaps[0] if snaps else None
     history = [
         {
-            "timestamp": s.timestamp.isoformat(),
+            "timestamp": s.timestamp.isoformat() + "Z",
             "is_open": s.is_open,
             "wait_minutes": s.wait_minutes,
             "crowd_level": s.crowd_level,
@@ -126,7 +126,7 @@ async def predict_truck(
 
     snap_dicts = [
         {
-            "timestamp": s.timestamp.isoformat(),
+            "timestamp": s.timestamp.isoformat() + "Z",
             "is_open": s.is_open,
             "wait_minutes": s.wait_minutes,
             "crowd_level": s.crowd_level,

@@ -23,7 +23,7 @@ def _zone_status(zone: NoiseZone, snap: NoiseSnapshot | None) -> dict:
         "vibe_score": snap.vibe_score if snap else 50,
         "crowd_density": snap.crowd_density if snap else 0,
         "vibe_label": snap.vibe_label if snap else "Quiet",
-        "last_updated": snap.timestamp.isoformat() if snap else None,
+        "last_updated": snap.timestamp.isoformat() + "Z" if snap else None,
     }
 
 
@@ -70,7 +70,7 @@ async def zone_status(zone_id: str, db: AsyncSession = Depends(get_db)):
     current = snaps[0] if snaps else None
     history = [
         {
-            "timestamp": s.timestamp.isoformat(),
+            "timestamp": s.timestamp.isoformat() + "Z",
             "noise_db": s.noise_db,
             "vibe_score": s.vibe_score,
             "crowd_density": s.crowd_density,

@@ -36,7 +36,7 @@ def _station_status(station: EVStation, snap: EVSnapshot | None) -> dict:
         "available_ports": snap.available_ports if snap else station.total_ports,
         "avg_wait_minutes": snap.avg_wait_minutes if snap else 0,
         "status": "Available" if (snap and snap.available_ports > 0) else ("Queue" if snap and snap.avg_wait_minutes > 0 else "Available"),
-        "last_updated": snap.timestamp.isoformat() if snap else None,
+        "last_updated": snap.timestamp.isoformat() + "Z" if snap else None,
     }
 
 
@@ -92,7 +92,7 @@ async def station_status(station_id: str, db: AsyncSession = Depends(get_db)):
 
     current = snaps[0] if snaps else None
     history = [
-        {"timestamp": s.timestamp.isoformat(), "available_ports": s.available_ports, "avg_wait_minutes": s.avg_wait_minutes}
+        {"timestamp": s.timestamp.isoformat() + "Z", "available_ports": s.available_ports, "avg_wait_minutes": s.avg_wait_minutes}
         for s in reversed(snaps)
     ]
     return {**_station_status(station, current), "history": history}
@@ -122,7 +122,7 @@ async def predict_station(
         )
     ).scalars().all()
 
-    snap_dicts = [{"timestamp": s.timestamp.isoformat(), "available_ports": s.available_ports, "avg_wait_minutes": s.avg_wait_minutes} for s in snaps]
+    snap_dicts = [{"timestamp": s.timestamp.isoformat() + "Z", "available_ports": s.available_ports, "avg_wait_minutes": s.avg_wait_minutes} for s in snaps]
     entity = {"id": station.id, "name": station.name, "total_ports": station.total_ports, "network": station.network}
 
     prediction = await predict_availability("ev", entity, target, snap_dicts)

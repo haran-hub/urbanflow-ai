@@ -36,7 +36,7 @@ def _service_status(service: LocalService, snap: ServiceSnapshot | None) -> dict
         "estimated_wait_minutes": snap.estimated_wait_minutes if snap else 0,
         "queue_length": snap.queue_length if snap else 0,
         "wait_label": _wait_label(snap.estimated_wait_minutes if snap else 0),
-        "last_updated": snap.timestamp.isoformat() if snap else None,
+        "last_updated": snap.timestamp.isoformat() + "Z" if snap else None,
     }
 
 
@@ -108,7 +108,7 @@ async def service_status(service_id: str, db: AsyncSession = Depends(get_db)):
     current = snaps[0] if snaps else None
     history = [
         {
-            "timestamp": s.timestamp.isoformat(),
+            "timestamp": s.timestamp.isoformat() + "Z",
             "estimated_wait_minutes": s.estimated_wait_minutes,
             "queue_length": s.queue_length,
             "is_open": s.is_open,
@@ -142,7 +142,7 @@ async def predict_service(
         )
     ).scalars().all()
 
-    snap_dicts = [{"timestamp": s.timestamp.isoformat(), "estimated_wait_minutes": s.estimated_wait_minutes, "queue_length": s.queue_length} for s in snaps]
+    snap_dicts = [{"timestamp": s.timestamp.isoformat() + "Z", "estimated_wait_minutes": s.estimated_wait_minutes, "queue_length": s.queue_length} for s in snaps]
     entity = {"id": service.id, "name": service.name, "category": service.category}
 
     prediction = await predict_availability("service", entity, target, snap_dicts)

@@ -148,7 +148,7 @@ async def overview(
 
     return {
         "city": city,
-        "timestamp": now.isoformat(),
+        "timestamp": now.isoformat() + "Z",
         "rush_status": rush_status,
         "parking": {
             "total_spots": parking_total,
@@ -256,7 +256,7 @@ async def ai_plan(request: UrbanPlanRequest, db: AsyncSession = Depends(get_db))
 
     location = {"lat": request.lat, "lng": request.lng, "city": request.city}
     plan = await generate_urban_plan(location, request.needs, request.depart_at, all_options)
-    return {"plan": plan, "generated_at": datetime.utcnow().isoformat()}
+    return {"plan": plan, "generated_at": datetime.utcnow().isoformat() + "Z"}
 
 
 @router.get("/best-time")
