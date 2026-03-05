@@ -9,31 +9,30 @@ AI-powered smart city navigation — real-time data across 8 urban domains for S
 ## Features
 
 ### 8 Urban Domains
-- **Parking** — real-time occupancy, AI predictions, smart recommendations, map view
-- **EV Charging** — live port availability via Open Charge Map, queue estimates, map view
+- **Parking** — real-time occupancy, AI predictions, smart recommendations
+- **EV Charging** — live port availability via Open Charge Map, queue estimates
 - **Transit** — crowd levels, delays, next arrival; SF real-time via 511.org
-- **Local Services** — hospitals, banks, pharmacies, DMV with wait time predictions, map view
+- **Local Services** — hospitals, banks, pharmacies, DMV with wait time predictions
 - **Air Quality** — AQI, PM2.5, PM10, O3, pollen index, UV index via OpenAQ
 - **Bike Share** — live dock availability, e-bikes, AI station recommendations via GBFS
 - **Food Trucks** — open/closed status, wait times, crowd levels by cuisine type
 - **Noise & Vibe** — neighborhood energy, crowd density, night scene activity
 
 ### Unique AI Features
-- **◎ City Pulse Score** — composite 0–100 livability index computed from all 8 domains in real time, weighted by impact (air 20%, parking/EV/transit 15% each, bikes/vibe/services 10%, food 5%)
-- **💬 AI City Concierge** — multi-turn chat powered by Claude; answers questions using live entity-level data (actual zone names, addresses, real numbers) — not generic summaries
+- **◎ City Pulse Score** — composite 0–100 livability index from all 8 domains in real time, weighted by impact (air 20%, parking/EV/transit 15% each, bikes/vibe/services 10%, food 5%)
+- **💬 AI City Concierge** — multi-turn chat powered by Claude; answers with live entity-level data (actual names, addresses, real numbers) — not generic summaries
 - **⚖ Live City Compare** — SF vs New York vs Austin head-to-head across 9 metrics with per-metric winner crowns and overall champion
-- **Surge Predictor** — AI-powered early warnings for emerging congestion in parking, transit, and EV with severity levels and actionable tips
+- **Surge Predictor** — AI-powered early warnings for emerging congestion with severity levels and actionable tips
 - **✦ AI Planner** — Claude-powered multi-modal urban travel plan across all domains
 - **Best Time** — AI recommendation for the least-busy window at any location
 - **Future AI Predict** — predict occupancy/wait at any future time for any entity
 
 ### Platform
+- **Landing page** — full-screen marketing page at `/` with feature showcase, city cards, and "Launch App" CTA
 - **On-demand data refresh** — every page load and city switch triggers a fresh simulation snapshot; data is never stale from a fixed timer
-- **Map View** — interactive Leaflet map with color-coded status markers on parking, EV, and services pages
-- **Auto city detection** — geolocation detects your nearest city on first visit; preference saved to localStorage
-- **Timezone-aware** — all simulation uses each city's local time (PST/EST/CST)
+- **Smart geolocation** — detects nearest city on every visit; only manual city picks persist to localStorage so location stays fresh
 - **Left sidebar nav** — fixed 220px sidebar on desktop, hamburger menu on mobile
-- **WebSocket live updates** — dashboard refreshes automatically when new snapshots are broadcast
+- **WebSocket live updates** — dashboard auto-refreshes when new snapshots are broadcast
 
 ---
 
@@ -44,7 +43,7 @@ AI-powered smart city navigation — real-time data across 8 urban domains for S
 | Backend | FastAPI · SQLAlchemy async · SQLite · APScheduler |
 | AI | Claude API — concierge chat, predictions, planning, surge alerts |
 | Real data | Open Charge Map · Overpass OSM · OpenAQ · GBFS · 511.org |
-| Frontend | Next.js 15 · React 19 · Tailwind CSS · react-leaflet |
+| Frontend | Next.js 15 · React 19 · Tailwind CSS |
 | Deploy | Render (backend + persistent disk) · Vercel (frontend) |
 
 ---
@@ -75,7 +74,8 @@ urbanflow-ai/
 │   └── requirements.txt
 ├── frontend/
 │   ├── app/
-│   │   ├── page.tsx             # Dashboard — pulse ring, surge widget, explore cards
+│   │   ├── page.tsx             # Landing page — hero, domain showcase, AI features, city cards
+│   │   ├── dashboard/           # Main dashboard — pulse ring, surge widget, explore cards
 │   │   ├── parking · ev · transit · services · air · bikes · food-trucks · noise
 │   │   ├── plan/                # AI urban planner
 │   │   ├── pulse/               # City Pulse Score page
@@ -83,10 +83,11 @@ urbanflow-ai/
 │   │   └── compare/             # Live City Compare page
 │   ├── components/
 │   │   ├── Header.tsx           # Sidebar nav + mobile hamburger
-│   │   ├── CityMap.tsx          # react-leaflet map with color-coded markers
 │   │   ├── SurgeWidget.tsx      # Surge alerts widget
 │   │   ├── StatCard · OccupancyBar · BestTimeModal · Toast
-│   ├── hooks/                   # useDetectedCity, useWebSocket
+│   ├── hooks/
+│   │   ├── useDetectedCity.ts   # Geolocation + manual city preference
+│   │   └── useWebSocket.ts      # WebSocket auto-reconnect
 │   └── lib/                     # api.ts, types.ts
 ├── render.yaml                  # Render Blueprint (auto-deploy on backend changes)
 └── vercel.json                  # Vercel config
@@ -153,6 +154,27 @@ NEXT_PUBLIC_API_URL=https://urbanflow-ai.onrender.com
 
 ---
 
+## Routes
+
+| Route | Description |
+|-------|-------------|
+| `/` | Landing page — feature showcase, city cards, CTA |
+| `/dashboard` | Main dashboard — live stats, pulse ring, surge widget, explore grid |
+| `/parking` | Parking zones — occupancy, predictions, recommendations |
+| `/ev` | EV stations — port availability, queue estimates |
+| `/transit` | Transit routes — crowd levels, delays |
+| `/services` | Local services — open/closed, wait times |
+| `/air` | Air quality — AQI, PM2.5, pollen, UV |
+| `/bikes` | Bike share — dock availability, e-bikes |
+| `/food-trucks` | Food trucks — open status, wait, cuisine |
+| `/noise` | Noise & vibe — neighborhood energy |
+| `/pulse` | City Pulse Score — 0–100 composite livability |
+| `/concierge` | AI Concierge — multi-turn Claude chat |
+| `/compare` | Live City Compare — SF vs NY vs Austin |
+| `/plan` | AI Urban Planner — multi-modal trip plan |
+
+---
+
 ## API Endpoints
 
 | Method | Path | Description |
@@ -197,9 +219,9 @@ Occupancy %, wait times, crowd levels, and vibe scores use a time-aware simulati
 
 ## Data Refresh
 
-- **On-demand**: every `GET /api/*?city=X` triggers `update_city_snapshots(city)` — regenerates all 8 domain snapshots for that city using the simulation engine (bulk DB queries, ~200ms)
+- **On-demand**: every `GET /api/*?city=X` triggers `update_city_snapshots(city)` — regenerates all 8 domain snapshots for that city (~200ms)
 - **Per-city cooldown**: 5-second debounce prevents hammering on rapid navigation
-- **Background fallback**: APScheduler runs periodically to keep idle-tab data fresh and pull live OCM/511 data that requires external network calls
+- **Background fallback**: APScheduler runs periodically to keep idle-tab data fresh and pull live OCM/511 data
 - **WebSocket**: broadcasts snapshot updates; dashboard auto-refreshes on receipt
 
 ---
