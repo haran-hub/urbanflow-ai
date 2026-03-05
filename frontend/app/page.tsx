@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
@@ -21,24 +21,21 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
 
-  const fetchOverview = useCallback(async () => {
-    try {
-      const data = await getOverview(city);
-      setOverview(data);
-    } catch {
-      // silent
-    } finally {
-      setLoading(false);
-    }
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    getOverview(city)
+      .then((data) => { if (!cancelled) setOverview(data); })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [city]);
 
-  useEffect(() => {
-    setLoading(true);
-    fetchOverview();
-  }, [fetchOverview]);
+  const cityRef = useRef(city);
+  cityRef.current = city;
 
   useWebSocket(city, () => {
-    fetchOverview();
+    getOverview(cityRef.current).then(setOverview).catch(() => {});
     setToast("Live update received");
   });
 
