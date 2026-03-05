@@ -38,7 +38,7 @@ function ServicesContent() {
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { wait: number; label: string; explain: string }>>({});
   const [arriveAt, setArriveAt] = useState(() => {
-    const d = new Date(); d.setHours(d.getHours() + 2, 0, 0, 0);
+    const d = new Date(); d.setSeconds(0, 0);
     const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   });
 

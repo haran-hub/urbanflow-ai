@@ -19,7 +19,7 @@ export default function PlanPage() {
   const { city, setCity } = useDetectedCity();
   const [needs, setNeeds] = useState<string[]>(["parking", "transit"]);
   const [departAt, setDepartAt] = useState(() => {
-    const d = new Date(); d.setMinutes(0, 0, 0);
+    const d = new Date(); d.setSeconds(0, 0);
     const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   });
   const [plan, setPlan] = useState<UrbanPlan | null>(null);
