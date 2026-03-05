@@ -7,6 +7,7 @@ import Toast from "@/components/Toast";
 import { getFoodTrucks, predictFoodTruck } from "@/lib/api";
 import type { FoodTruck } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
@@ -46,6 +47,7 @@ function FoodTrucksContent() {
   }, [city, cuisine]);
 
   useEffect(() => { setLoading(true); fetchTrucks(); }, [fetchTrucks]);
+  usePolling(fetchTrucks);
 
   async function handlePredict(truck: FoodTruck) {
     setPredicting(truck.id);

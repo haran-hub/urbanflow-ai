@@ -4,6 +4,7 @@ import Header from "@/components/Header";
 import { getCityComparison } from "@/lib/api";
 import type { CompareData } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 
 const CITIES = ["San Francisco", "New York", "Austin"] as const;
 
@@ -45,6 +46,10 @@ export default function ComparePage() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, []);
+
+  usePolling(() => {
+    getCityComparison().then(setData).catch(() => {});
+  });
 
   // Tally wins per city
   const wins: Record<string, number> = { "San Francisco": 0, "New York": 0, "Austin": 0 };

@@ -7,6 +7,7 @@ import Toast from "@/components/Toast";
 import { getBikeStations, recommendBike } from "@/lib/api";
 import type { BikeStation, Recommendation } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
@@ -39,6 +40,7 @@ function BikesContent() {
   }, [city]);
 
   useEffect(() => { setLoading(true); fetchStations(); }, [fetchStations]);
+  usePolling(fetchStations);
 
   async function handleRecommend() {
     setRecommending(true);

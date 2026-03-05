@@ -7,6 +7,7 @@ import Toast from "@/components/Toast";
 import { getAirStations, predictAir } from "@/lib/api";
 import type { AirStation } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
@@ -55,6 +56,7 @@ function AirContent() {
   }, [city]);
 
   useEffect(() => { setLoading(true); fetchStations(); }, [fetchStations]);
+  usePolling(fetchStations);
 
   async function handlePredict(station: AirStation) {
     setPredicting(station.id);

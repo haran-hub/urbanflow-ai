@@ -8,6 +8,7 @@ import Toast from "@/components/Toast";
 import { getServices, predictService } from "@/lib/api";
 import type { LocalService } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
@@ -53,6 +54,7 @@ function ServicesContent() {
   }, [city, category]);
 
   useEffect(() => { setLoading(true); fetchServices(); }, [fetchServices]);
+  usePolling(fetchServices);
 
   async function handlePredict(service: LocalService) {
     setPredicting(service.id);

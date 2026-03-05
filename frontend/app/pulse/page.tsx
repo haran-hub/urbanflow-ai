@@ -1,10 +1,11 @@
 "use client";
-import { useEffect, useState, Suspense } from "react";
+import { useEffect, useState, useRef, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import { getPulseScore } from "@/lib/api";
 import type { PulseScore } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 
 const DOMAIN_ICONS: Record<string, string> = {
   parking: "🅿",
@@ -81,6 +82,12 @@ function PulseContent() {
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
   }, [city]);
+
+  const cityRef = useRef(city);
+  cityRef.current = city;
+  usePolling(() => {
+    getPulseScore(cityRef.current).then(setPulse).catch(() => {});
+  });
 
   const DOMAIN_ORDER = ["parking", "ev", "transit", "services", "air", "bikes", "food_trucks", "vibe"];
 

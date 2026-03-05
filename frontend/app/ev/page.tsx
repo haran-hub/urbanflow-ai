@@ -8,6 +8,7 @@ import Toast from "@/components/Toast";
 import { getEVStations, predictEV, recommendEV } from "@/lib/api";
 import type { EVStation, Recommendation } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
@@ -49,6 +50,7 @@ function EVContent() {
   }, [city]);
 
   useEffect(() => { setLoading(true); fetchStations(); }, [fetchStations]);
+  usePolling(fetchStations);
 
   async function handlePredict(station: EVStation) {
     setPredicting(station.id);

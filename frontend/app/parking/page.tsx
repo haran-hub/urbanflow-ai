@@ -9,6 +9,7 @@ import Toast from "@/components/Toast";
 import { getParkingZones, predictParking, recommendParking } from "@/lib/api";
 import type { ParkingZone, Recommendation } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
@@ -48,6 +49,7 @@ function ParkingContent() {
   }, [city]);
 
   useEffect(() => { setLoading(true); fetchZones(); }, [fetchZones]);
+  usePolling(fetchZones);
 
   async function handlePredict(zone: ParkingZone) {
     setPredicting(zone.id);

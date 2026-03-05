@@ -8,6 +8,7 @@ import Toast from "@/components/Toast";
 import { getTransitRoutes, predictTransit } from "@/lib/api";
 import type { TransitRoute } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 
 const TYPE_ICONS: Record<string, string> = { bus: "🚌", subway: "🚇", tram: "🚋", ferry: "⛴" };
 const TYPE_COLOR: Record<string, string> = { bus: "#f59e0b", subway: "#3b82f6", tram: "#22c55e", ferry: "#0ea5e9" };
@@ -38,6 +39,7 @@ function TransitContent() {
   }, [city]);
 
   useEffect(() => { setLoading(true); fetchRoutes(); }, [fetchRoutes]);
+  usePolling(fetchRoutes);
 
   async function handlePredict(route: TransitRoute) {
     setPredicting(route.id);

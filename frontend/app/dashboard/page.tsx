@@ -10,6 +10,7 @@ import NarrativeCard from "@/components/NarrativeCard";
 import { getOverview, getPulseScore } from "@/lib/api";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 import type { DashboardOverview, PulseScore } from "@/lib/types";
 
 const RUSH_COLOR: Record<string, string> = {
@@ -39,6 +40,11 @@ function DashboardContent() {
 
   const cityRef = useRef(city);
   cityRef.current = city;
+
+  usePolling(() => {
+    getOverview(cityRef.current).then(setOverview).catch(() => {});
+    getPulseScore(cityRef.current).then(setPulse).catch(() => {});
+  });
 
   useWebSocket(city, () => {
     getOverview(cityRef.current).then(setOverview).catch(() => {});

@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import { getBriefing } from "@/lib/api";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { usePolling } from "@/hooks/usePolling";
 import type { BriefingResponse } from "@/lib/types";
 
 function BriefingContent() {
@@ -21,6 +22,7 @@ function BriefingContent() {
   }
 
   useEffect(() => { load(); }, [city]); // eslint-disable-line react-hooks/exhaustive-deps
+  usePolling(load, 5 * 60_000); // briefing is AI-generated, refresh every 5 min
 
   return (
     <main className="min-h-screen pt-14 md:pt-0 md:pl-[220px]" style={{ background: "var(--bg)" }}>
