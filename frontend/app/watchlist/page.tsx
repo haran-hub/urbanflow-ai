@@ -73,7 +73,7 @@ function WatchlistContent() {
             current = overview.value.transit?.avg_crowd_level ?? null;
           } else if (item.domain === "air" && airData.status === "fulfilled") {
             const st = airData.value.stations[0];
-            if (st) current = (st as Record<string, number>)[item.metric] ?? null;
+            if (st) current = (st as unknown as Record<string, number>)[item.metric] ?? null;
           } else if (item.domain === "ev" && evData.status === "fulfilled") {
             const agg = evData.value.stations;
             if (agg.length) {
