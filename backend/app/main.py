@@ -1,7 +1,9 @@
+import asyncio
 import logging
+import time as _time
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import func, select
 
@@ -13,6 +15,39 @@ from app.routes import parking, ev, transit, services, dashboard, ws, air, bikes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ── On-demand city refresh (one refresh per city per N seconds) ────────────────
+_REFRESH_COOLDOWN = 5          # seconds between refreshes for the same city
+_city_last_refresh: dict[str, float] = {}
+_city_refresh_locks: dict[str, asyncio.Lock] = {}
+
+
+async def _on_demand_refresh(city: str) -> None:
+    """Regenerate all snapshots for `city` at most once per cooldown window."""
+    now = _time.monotonic()
+    if now - _city_last_refresh.get(city, 0) < _REFRESH_COOLDOWN:
+        return  # still fresh enough
+
+    if city not in _city_refresh_locks:
+        _city_refresh_locks[city] = asyncio.Lock()
+    lock = _city_refresh_locks[city]
+
+    if lock.locked():
+        return  # another request is already refreshing this city
+
+    async with lock:
+        # Re-check after acquiring lock
+        if _time.monotonic() - _city_last_refresh.get(city, 0) < _REFRESH_COOLDOWN:
+            return
+        _city_last_refresh[city] = _time.monotonic()
+
+        from app.scheduler import update_city_snapshots
+        try:
+            async with AsyncSessionLocal() as db:
+                await update_city_snapshots(city, db)
+            logger.debug(f"On-demand refresh done for {city}")
+        except Exception as e:
+            logger.warning(f"On-demand refresh failed for {city}: {e}")
 
 
 @asynccontextmanager
@@ -70,6 +105,29 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def refresh_on_city_request(request: Request, call_next):
+    """
+    Before serving any GET /api/* request that includes a ?city= param,
+    regenerate snapshots for that city (at most once per cooldown window).
+    This ensures users always see fresh data on navigation / page reload.
+    """
+    city = request.query_params.get("city")
+    if (
+        city
+        and request.method == "GET"
+        and request.url.path.startswith("/api/")
+        # Skip endpoints that don't use snapshot data
+        and not request.url.path.startswith("/api/concierge")
+        and not request.url.path.startswith("/api/surge")
+        and not request.url.path.startswith("/api/dashboard/compare")
+    ):
+        await _on_demand_refresh(city)
+
+    return await call_next(request)
+
 
 app.include_router(parking.router)
 app.include_router(ev.router)

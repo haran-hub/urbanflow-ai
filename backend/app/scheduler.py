@@ -214,6 +214,63 @@ async def _update_transit_realtime(db, now: datetime) -> list[TransitRoute]:
     return routes
 
 
+async def update_city_snapshots(city: str, db) -> None:
+    """
+    Regenerate snapshots for a single city using simulation (no external API calls).
+    Called on-demand when a user request comes in for that city.
+    """
+    now = datetime.utcnow()
+    local = _local_now(city, now)
+
+    zones = (await db.execute(select(ParkingZone).where(ParkingZone.city == city))).scalars().all()
+    for zone in zones:
+        occ, available = generate_parking_occupancy(
+            {"total_spots": zone.total_spots, "zone_type": zone.zone_type}, local
+        )
+        db.add(ParkingSnapshot(zone_id=zone.id, timestamp=now, available_spots=available, occupancy_pct=occ))
+
+    stations = (await db.execute(select(EVStation).where(EVStation.city == city))).scalars().all()
+    for st in stations:
+        available, wait = generate_ev_wait({"total_ports": st.total_ports}, local)
+        db.add(EVSnapshot(station_id=st.id, timestamp=now, available_ports=available, avg_wait_minutes=wait))
+
+    routes = (await db.execute(select(TransitRoute).where(TransitRoute.city == city))).scalars().all()
+    for r in routes:
+        crowd, delay, next_arr = generate_transit_crowd(
+            {"frequency_mins": r.frequency_mins, "route_type": r.route_type}, local
+        )
+        db.add(TransitSnapshot(route_id=r.id, timestamp=now, occupancy_level=crowd, delay_minutes=delay, next_arrival_mins=next_arr))
+
+    services = (await db.execute(select(LocalService).where(LocalService.city == city))).scalars().all()
+    for sv in services:
+        wait, queue, is_open = generate_service_wait(
+            {"category": sv.category, "typical_hours": sv.typical_hours}, local
+        )
+        db.add(ServiceSnapshot(service_id=sv.id, timestamp=now, estimated_wait_minutes=wait, queue_length=queue, is_open=is_open))
+
+    air_stations = (await db.execute(select(AirStation).where(AirStation.city == city))).scalars().all()
+    for ast in air_stations:
+        aqi, pm25, pm10, o3, pollen, uv, cat = generate_air_quality({}, local)
+        db.add(AirSnapshot(station_id=ast.id, timestamp=now, aqi=aqi, pm25=pm25, pm10=pm10, o3=o3, pollen_level=pollen, uv_index=uv, category=cat))
+
+    bike_stations = (await db.execute(select(BikeStation).where(BikeStation.city == city))).scalars().all()
+    for bs in bike_stations:
+        bikes, ebikes, docks, renting = generate_bike_availability({"total_docks": bs.total_docks}, local)
+        db.add(BikeSnapshot(station_id=bs.id, timestamp=now, available_bikes=bikes, available_ebikes=ebikes, available_docks=docks, is_renting=renting))
+
+    trucks = (await db.execute(select(FoodTruck).where(FoodTruck.city == city))).scalars().all()
+    for t in trucks:
+        is_open, wait_min, crowd = generate_food_truck({"typical_hours": t.typical_hours}, local)
+        db.add(FoodTruckSnapshot(truck_id=t.id, timestamp=now, is_open=is_open, wait_minutes=wait_min, crowd_level=crowd))
+
+    noise_zones = (await db.execute(select(NoiseZone).where(NoiseZone.city == city))).scalars().all()
+    for nz in noise_zones:
+        noise_db_val, vibe, crowd, label = generate_noise_vibe({"zone_type": nz.zone_type}, local)
+        db.add(NoiseSnapshot(zone_id=nz.id, timestamp=now, noise_db=noise_db_val, vibe_score=vibe, crowd_density=crowd, vibe_label=label))
+
+    await db.commit()
+
+
 async def _update_snapshots():
     now = datetime.utcnow()
     cutoff = now - timedelta(hours=24)
