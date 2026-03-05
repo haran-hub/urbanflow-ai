@@ -11,7 +11,7 @@ from app.config import settings
 from app.database import create_tables, AsyncSessionLocal
 from app.models import ParkingZone, EVStation, TransitRoute, LocalService, AirStation, BikeStation, FoodTruck, NoiseZone
 from app.scheduler import start_scheduler, stop_scheduler
-from app.routes import parking, ev, transit, services, dashboard, ws, air, bikes, foodtrucks, noise, pulse, concierge, surge
+from app.routes import parking, ev, transit, services, dashboard, ws, air, bikes, foodtrucks, noise, pulse, concierge, surge, briefing, narrative, moment
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -123,6 +123,9 @@ async def refresh_on_city_request(request: Request, call_next):
         and not request.url.path.startswith("/api/concierge")
         and not request.url.path.startswith("/api/surge")
         and not request.url.path.startswith("/api/dashboard/compare")
+        and not request.url.path.startswith("/api/briefing")
+        and not request.url.path.startswith("/api/narrative")
+        and not request.url.path.startswith("/api/moment")
     ):
         await _on_demand_refresh(city)
 
@@ -142,6 +145,9 @@ app.include_router(noise.router)
 app.include_router(pulse.router)
 app.include_router(concierge.router)
 app.include_router(surge.router)
+app.include_router(briefing.router)
+app.include_router(narrative.router)
+app.include_router(moment.router)
 
 
 @app.get("/")

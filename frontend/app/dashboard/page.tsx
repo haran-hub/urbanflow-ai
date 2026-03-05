@@ -6,6 +6,7 @@ import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
 import Toast from "@/components/Toast";
 import SurgeWidget from "@/components/SurgeWidget";
+import NarrativeCard from "@/components/NarrativeCard";
 import { getOverview, getPulseScore } from "@/lib/api";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
@@ -119,6 +120,13 @@ function DashboardContent() {
               />
             </div>
           )}
+        </div>
+      </section>
+
+      {/* City Right Now narrative */}
+      <section className="px-4 pb-4">
+        <div className="max-w-6xl mx-auto">
+          <NarrativeCard city={city} />
         </div>
       </section>
 

@@ -4,6 +4,7 @@ import type {
   AirStation, BikeStation, FoodTruck, NoiseZone,
   Prediction, Recommendation, BestTime, UrbanPlan,
   PulseScore, ConciergeResponse, CompareData, SurgeData,
+  BriefingResponse, MomentResponse, NarrativeResponse,
 } from "./types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -155,5 +156,23 @@ export async function getCityComparison(): Promise<CompareData> {
 // Surge Alerts
 export async function getSurgeAlerts(city: string): Promise<SurgeData> {
   const { data } = await api.get("/api/surge/alerts", { params: { city } });
+  return data;
+}
+
+// Daily City Briefing
+export async function getBriefing(city: string): Promise<BriefingResponse> {
+  const { data } = await api.get("/api/briefing/today", { params: { city } });
+  return data;
+}
+
+// Micro-moment Planner
+export async function planMoment(city: string, query: string): Promise<MomentResponse> {
+  const { data } = await api.post("/api/moment/plan", { city, query });
+  return data;
+}
+
+// City Right Now Narrative
+export async function getNarrative(city: string): Promise<NarrativeResponse> {
+  const { data } = await api.get("/api/narrative", { params: { city } });
   return data;
 }

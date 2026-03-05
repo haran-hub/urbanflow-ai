@@ -182,7 +182,53 @@ export interface SurgeData {
   city: string;
   timestamp: string;
   alerts: SurgeAlert[];
+  causality_chains: string[];
   ai_generated: boolean;
+}
+
+export interface BriefingResponse {
+  city: string;
+  timestamp: string;
+  briefing: string;
+  highlights: string[];
+  ai_generated: boolean;
+}
+
+export interface TimeWindow {
+  time_range: string;
+  score: number;
+  reason: string;
+  conditions: Record<string, string>;
+}
+
+export interface MomentResponse {
+  city: string;
+  query: string;
+  timestamp: string;
+  best_window: TimeWindow;
+  alternative_windows: TimeWindow[];
+  avoid_window: TimeWindow;
+  summary: string;
+  ai_generated: boolean;
+}
+
+export interface NarrativeResponse {
+  city: string;
+  timestamp: string;
+  narrative: string;
+  mood: string;
+  mood_color: string;
+  ai_generated: boolean;
+}
+
+export interface WatchlistItem {
+  id: string;
+  domain: string;
+  label: string;
+  metric: string;
+  threshold: number;
+  condition: "above" | "below";
+  city: string;
 }
 
 export interface Prediction {

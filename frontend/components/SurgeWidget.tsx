@@ -34,6 +34,7 @@ interface Props {
 
 export default function SurgeWidget({ city }: Props) {
   const [alerts, setAlerts] = useState<SurgeAlert[]>([]);
+  const [chains, setChains] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [aiGenerated, setAiGenerated] = useState(false);
 
@@ -44,6 +45,7 @@ export default function SurgeWidget({ city }: Props) {
       .then((d) => {
         if (!cancelled) {
           setAlerts(d.alerts);
+          setChains(d.causality_chains ?? []);
           setAiGenerated(d.ai_generated);
         }
       })
@@ -119,6 +121,18 @@ export default function SurgeWidget({ city }: Props) {
           </div>
         ))}
       </div>
+
+      {chains.length > 0 && (
+        <div className="flex flex-col gap-2 pt-1 border-t" style={{ borderColor: "rgba(139,92,246,0.15)" }}>
+          <p className="text-xs font-semibold" style={{ color: "#a78bfa" }}>🔗 Causality Chains</p>
+          {chains.map((chain, i) => (
+            <div key={i} className="text-xs px-3 py-2 rounded-lg leading-relaxed"
+              style={{ background: "rgba(139,92,246,0.08)", border: "1px solid rgba(139,92,246,0.18)", color: "var(--text)" }}>
+              {chain}
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

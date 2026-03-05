@@ -15,10 +15,14 @@ const NAV = [
   { href: "/bikes",      label: "Bikes",        icon: "🚲" },
   { href: "/food-trucks",label: "Food Trucks",  icon: "🚚" },
   { href: "/noise",      label: "Noise & Vibe", icon: "🎵" },
-  { href: "/plan",       label: "AI Plan",      icon: "✦" },
-  { href: "/pulse",      label: "City Pulse",   icon: "◎" },
-  { href: "/concierge",  label: "AI Concierge", icon: "💬" },
-  { href: "/compare",    label: "City Compare", icon: "⚖" },
+  { href: "/plan",       label: "AI Plan",        icon: "✦" },
+  { href: "/pulse",      label: "City Pulse",     icon: "◎" },
+  { href: "/concierge",  label: "AI Concierge",   icon: "💬" },
+  { href: "/compare",    label: "City Compare",   icon: "⚖" },
+  { href: "/briefing",   label: "City Briefing",  icon: "☀" },
+  { href: "/moment",     label: "Moment Planner", icon: "⏱" },
+  { href: "/heatmap",    label: "Heat Map",       icon: "🗺" },
+  { href: "/watchlist",  label: "Watchlist",      icon: "🔔" },
 ];
 
 interface HeaderProps {

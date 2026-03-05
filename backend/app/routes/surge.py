@@ -111,6 +111,31 @@ def _rule_based_surge(city: str, parking_data: list, ev_data: list, transit_data
     return alerts
 
 
+def _rule_based_chains(parking_data: list, ev_data: list, transit_data: list) -> list[str]:
+    """Generate simple cross-domain causality chains from rule-based thresholds."""
+    chains = []
+    avg_park = (sum(d["occupancy_pct"] for d in parking_data) / len(parking_data)) if parking_data else 0
+    avg_transit = (sum(d["occupancy_level"] for d in transit_data) / len(transit_data)) if transit_data else 0
+    avg_ev_wait = (sum(d["avg_wait_minutes"] for d in ev_data) / len(ev_data)) if ev_data else 0
+
+    if avg_park > 0.80 and avg_transit > 70:
+        chains.append(
+            f"High demand across the board — parking {round(avg_park * 100)}% full + transit {round(avg_transit)}% packed "
+            f"→ consider bike share or off-peak travel"
+        )
+    elif avg_park > 0.80 and avg_ev_wait > 20:
+        chains.append(
+            f"Parking surge ({round(avg_park * 100)}% full) spilling into EV areas — "
+            f"avg {round(avg_ev_wait)} min EV wait → use transit or charge overnight"
+        )
+    elif avg_transit > 80 and avg_ev_wait > 15:
+        chains.append(
+            f"Transit at {round(avg_transit)}% capacity + EV queues averaging {round(avg_ev_wait)} min → "
+            f"peak commute conditions — walk or bike if distance allows"
+        )
+    return chains
+
+
 @router.get("/alerts")
 async def surge_alerts(
     city: str = Query(default="San Francisco"),
@@ -146,44 +171,54 @@ async def surge_alerts(
     client = _get_client()
     if not client or (not parking_data and not ev_data and not transit_data):
         alerts = _rule_based_surge(city, parking_data, ev_data, transit_data)
+        causality_chains = _rule_based_chains(parking_data, ev_data, transit_data)
         return {
             "city": city,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "alerts": alerts,
+            "causality_chains": causality_chains,
             "ai_generated": False,
         }
 
     system = (
         "You are an urban surge prediction AI. Analyze current city metrics and identify emerging surges. "
-        "Return ONLY valid JSON: {\"alerts\": [{\"domain\": str, \"severity\": \"low|medium|high\", "
-        "\"message\": str, \"tip\": str, \"predicted_peak_in_mins\": int}]}. "
-        "Max 3 alerts. If conditions are good, return one low-severity alert saying so."
+        "Return ONLY valid JSON:\n"
+        "{\n"
+        '  "alerts": [{"domain": str, "severity": "low|medium|high", "message": str, "tip": str, "predicted_peak_in_mins": int}],\n'
+        '  "causality_chains": ["chain string 1", "chain string 2"]\n'
+        "}\n"
+        "Max 3 alerts. If conditions are good, return one low-severity all-clear alert.\n"
+        "causality_chains: 0-2 strings describing cross-domain cause-effect chains only when genuinely severe, "
+        "e.g. 'Downtown event → EV chargers on Congress Ave packed by 7pm → Route 803 transit jammed → park in Zone B instead'. "
+        "Empty array if city conditions are calm."
     )
     prompt = (
         f"City: {city}\n"
         f"Parking (top zones): {json.dumps(parking_data[:5])}\n"
         f"EV Charging: {json.dumps(ev_data[:5])}\n"
         f"Transit: {json.dumps(transit_data[:5])}\n\n"
-        "Identify any emerging surges or congestion patterns. "
-        "Predict when peak will hit and give actionable tips. Return JSON only."
+        "Identify emerging surges. Detect cross-domain causality chains. Return JSON only."
     )
 
     try:
         msg = await client.messages.create(
             model=settings.ai_model,
-            max_tokens=400,
+            max_tokens=500,
             system=system,
             messages=[{"role": "user", "content": prompt}],
         )
         result = _parse_json(msg.content[0].text)
         alerts = result.get("alerts", [])
+        causality_chains = result.get("causality_chains", [])
     except Exception as e:
         logger.warning(f"Surge AI fallback: {e}")
         alerts = _rule_based_surge(city, parking_data, ev_data, transit_data)
+        causality_chains = _rule_based_chains(parking_data, ev_data, transit_data)
         return {
             "city": city,
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "alerts": alerts,
+            "causality_chains": causality_chains,
             "ai_generated": False,
         }
 
@@ -191,5 +226,6 @@ async def surge_alerts(
         "city": city,
         "timestamp": datetime.utcnow().isoformat() + "Z",
         "alerts": alerts,
+        "causality_chains": causality_chains,
         "ai_generated": True,
     }
