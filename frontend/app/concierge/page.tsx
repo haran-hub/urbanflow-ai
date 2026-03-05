@@ -50,10 +50,16 @@ function ConciergeContent() {
   async function send(question: string) {
     if (!question.trim() || loading) return;
     setInput("");
+    // Snapshot current messages to build history (exclude greeting, only real exchanges)
+    const currentMessages = messages;
     setMessages((prev) => [...prev, { role: "user", text: question, ts: new Date() }]);
     setLoading(true);
     try {
-      const res = await askConcierge(question, city);
+      // Build history from real exchanges only (skip initial greeting at index 0)
+      const history = currentMessages
+        .slice(1)  // skip the system greeting
+        .map((m) => ({ role: m.role, content: m.text }));
+      const res = await askConcierge(question, city, history);
       setMessages((prev) => [...prev, { role: "assistant", text: res.answer, ts: new Date() }]);
     } catch {
       setMessages((prev) => [...prev, {

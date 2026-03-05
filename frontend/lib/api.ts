@@ -137,8 +137,12 @@ export async function getPulseScore(city: string): Promise<PulseScore> {
 }
 
 // AI City Concierge
-export async function askConcierge(question: string, city: string): Promise<ConciergeResponse> {
-  const { data } = await api.post("/api/concierge/ask", { question, city });
+export async function askConcierge(
+  question: string,
+  city: string,
+  history: { role: "user" | "assistant"; content: string }[] = [],
+): Promise<ConciergeResponse> {
+  const { data } = await api.post("/api/concierge/ask", { question, city, history });
   return data;
 }
 
