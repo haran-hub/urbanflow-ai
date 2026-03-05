@@ -351,24 +351,6 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* ── FOOTER ──────────────────────────────────────────────────────── */}
-      <footer style={{ padding: "32px 24px", borderTop: "1px solid rgba(255,255,255,0.05)", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 16, maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 28, height: 28, borderRadius: 8, background: "#3b82f6", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 700, fontSize: 12, color: "#fff" }}>U</div>
-          <span style={{ fontSize: 14, color: "#475569" }}>UrbanFlow AI — real-time city intelligence</span>
-        </div>
-        <div style={{ display: "flex", gap: 24 }}>
-          {[
-            { label: "Dashboard", href: "/dashboard" },
-            { label: "AI Concierge", href: "/concierge" },
-            { label: "City Compare", href: "/compare" },
-            { label: "City Pulse", href: "/pulse" },
-          ].map((l) => (
-            <Link key={l.label} href={l.href} style={{ fontSize: 13, color: "#475569", textDecoration: "none" }}>{l.label}</Link>
-          ))}
-        </div>
-      </footer>
-
       <style>{`
         @keyframes pulse {
           0%, 100% { opacity: 1; }

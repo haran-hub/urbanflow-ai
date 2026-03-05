@@ -5,25 +5,43 @@ import { useState } from "react";
 
 const CITIES = ["San Francisco", "New York", "Austin"];
 
-const NAV = [
-  { href: "/dashboard",  label: "Dashboard",   icon: "⬡" },
-  { href: "/parking",    label: "Parking",      icon: "🅿" },
-  { href: "/ev",         label: "EV Charging",  icon: "⚡" },
-  { href: "/transit",    label: "Transit",      icon: "🚇" },
-  { href: "/services",   label: "Services",     icon: "🏛" },
-  { href: "/air",        label: "Air Quality",  icon: "🌬" },
-  { href: "/bikes",      label: "Bikes",        icon: "🚲" },
-  { href: "/food-trucks",label: "Food Trucks",  icon: "🚚" },
-  { href: "/noise",      label: "Noise & Vibe", icon: "🎵" },
-  { href: "/plan",       label: "AI Plan",        icon: "✦" },
-  { href: "/pulse",      label: "City Pulse",     icon: "◎" },
-  { href: "/concierge",  label: "AI Concierge",   icon: "💬" },
-  { href: "/compare",    label: "City Compare",   icon: "⚖" },
-  { href: "/briefing",   label: "City Briefing",  icon: "☀" },
-  { href: "/moment",     label: "Moment Planner", icon: "⏱" },
-  { href: "/heatmap",    label: "Heat Map",       icon: "🗺" },
-  { href: "/watchlist",  label: "Watchlist",      icon: "🔔" },
+const NAV_GROUPS = [
+  {
+    label: "EXPLORE",
+    items: [
+      { href: "/dashboard",    label: "Dashboard",    icon: "⬡" },
+      { href: "/parking",      label: "Parking",      icon: "🅿" },
+      { href: "/ev",           label: "EV Charging",  icon: "⚡" },
+      { href: "/transit",      label: "Transit",      icon: "🚇" },
+      { href: "/services",     label: "Services",     icon: "🏛" },
+      { href: "/air",          label: "Air Quality",  icon: "🌬" },
+      { href: "/bikes",        label: "Bikes",        icon: "🚲" },
+      { href: "/food-trucks",  label: "Food Trucks",  icon: "🚚" },
+      { href: "/noise",        label: "Noise & Vibe", icon: "🎵" },
+    ],
+  },
+  {
+    label: "AI FEATURES",
+    items: [
+      { href: "/plan",      label: "AI Plan",         icon: "✦" },
+      { href: "/pulse",     label: "City Pulse",      icon: "◎" },
+      { href: "/concierge", label: "AI Concierge",    icon: "💬" },
+      { href: "/briefing",  label: "City Briefing",   icon: "☀" },
+      { href: "/moment",    label: "Moment Planner",  icon: "⏱" },
+    ],
+  },
+  {
+    label: "TOOLS",
+    items: [
+      { href: "/compare",   label: "City Compare",    icon: "⚖" },
+      { href: "/heatmap",   label: "Heat Map",        icon: "🗺" },
+      { href: "/watchlist", label: "Watchlist",       icon: "🔔" },
+    ],
+  },
 ];
+
+// Flat list for mobile
+const NAV_FLAT = NAV_GROUPS.flatMap((g) => g.items);
 
 interface HeaderProps {
   city: string;
@@ -37,107 +55,190 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
 
   return (
     <>
-      {/* ── Mobile top bar ─────────────────────────────────────────── */}
+      {/* ── Mobile top bar ─────────────────────────────────────────────────── */}
       <header className="md:hidden glass fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)]">
+        {/* Gradient accent line */}
+        <div style={{ height: 2, background: "linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899)" }} />
+
         <div className="h-14 px-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg bg-[var(--accent)] flex items-center justify-center text-white text-xs font-bold">U</div>
+            <div
+              className="w-7 h-7 rounded-lg flex items-center justify-center text-white text-xs font-bold"
+              style={{ background: "linear-gradient(135deg, #3b82f6, #8b5cf6)", boxShadow: "0 0 10px rgba(139,92,246,0.4)" }}
+            >
+              U
+            </div>
             <span className="font-semibold text-sm" style={{ color: "var(--text)" }}>
               UrbanFlow <span style={{ color: "var(--accent)" }}>AI</span>
             </span>
           </Link>
+
           <div className="flex items-center gap-2">
             <select
               value={city}
               onChange={(e) => onCityChange(e.target.value)}
-              className="text-xs py-1 px-2"
-              style={{ minWidth: 110 }}
+              className="text-xs py-1 px-2 rounded-lg"
+              style={{ background: "var(--card2)", border: "1px solid var(--border)", color: "var(--text)", minWidth: 110 }}
             >
               {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
             <button
               onClick={() => setMobileOpen(!mobileOpen)}
-              className="p-1.5 rounded-lg"
-              style={{ color: "var(--muted)", border: "1px solid var(--border)" }}
+              className="w-8 h-8 flex items-center justify-center rounded-lg text-sm"
+              style={{ color: "var(--muted)", border: "1px solid var(--border)", background: "var(--card2)" }}
             >
               {mobileOpen ? "✕" : "☰"}
             </button>
           </div>
         </div>
+
         {/* Mobile dropdown nav */}
         {mobileOpen && (
-          <nav className="border-t border-[var(--border)] px-3 py-2 flex flex-col gap-0.5"
-            style={{ background: "rgba(15,17,23,0.97)" }}>
-            {NAV.map((n) => {
-              const href = `${n.href}?city=${encodeURIComponent(city)}`;
-              const active = pathname === n.href;
-              return (
-                <Link key={n.href} href={href} onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium"
-                  style={{
-                    color: active ? "var(--accent)" : "var(--muted)",
-                    background: active ? "var(--accent-glow)" : "transparent",
-                  }}>
-                  <span>{n.icon}</span>
-                  <span>{n.label}</span>
-                </Link>
-              );
-            })}
+          <nav
+            className="border-t border-[var(--border)] px-3 py-3 flex flex-col gap-1 max-h-[80vh] overflow-y-auto"
+            style={{ background: "rgba(10,10,15,0.98)" }}
+          >
+            {NAV_GROUPS.map((group) => (
+              <div key={group.label} className="mb-2">
+                <p className="text-[10px] font-bold tracking-widest px-3 py-1" style={{ color: "var(--muted)", opacity: 0.5 }}>
+                  {group.label}
+                </p>
+                {group.items.map((n) => {
+                  const href = `${n.href}?city=${encodeURIComponent(city)}`;
+                  const active = pathname === n.href;
+                  return (
+                    <Link
+                      key={n.href}
+                      href={href}
+                      onClick={() => setMobileOpen(false)}
+                      className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium"
+                      style={{
+                        color: active ? "white" : "var(--muted)",
+                        background: active
+                          ? "linear-gradient(135deg, rgba(59,130,246,0.2), rgba(139,92,246,0.15))"
+                          : "transparent",
+                        borderLeft: `2px solid ${active ? "var(--accent)" : "transparent"}`,
+                      }}
+                    >
+                      <span>{n.icon}</span>
+                      <span>{n.label}</span>
+                    </Link>
+                  );
+                })}
+              </div>
+            ))}
           </nav>
         )}
       </header>
 
-      {/* ── Desktop left sidebar ────────────────────────────────────── */}
-      <aside className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 z-50 w-[220px] border-r border-[var(--border)]"
-        style={{ background: "rgba(15,17,23,0.95)", backdropFilter: "blur(12px)" }}>
+      {/* ── Desktop left sidebar ───────────────────────────────────────────── */}
+      <aside
+        className="hidden md:flex flex-col fixed left-0 top-0 bottom-0 z-50 w-[220px] border-r border-[var(--border)]"
+        style={{ background: "rgba(8,8,14,0.97)", backdropFilter: "blur(16px)" }}
+      >
+        {/* Gradient top accent line */}
+        <div style={{ height: 2, background: "linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899)", flexShrink: 0 }} />
 
         {/* Logo */}
-        <div className="px-5 py-5 border-b border-[var(--border)]">
-          <Link href="/" className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[var(--accent)] flex items-center justify-center text-white text-sm font-bold shadow-lg"
-              style={{ boxShadow: "0 0 16px rgba(59,130,246,0.4)" }}>U</div>
+        <div className="px-5 py-5 border-b border-[var(--border)]" style={{ flexShrink: 0 }}>
+          <Link href="/" className="flex items-center gap-3">
+            <div
+              className="w-9 h-9 rounded-xl flex items-center justify-center text-white font-bold text-base"
+              style={{
+                background: "linear-gradient(135deg, #3b82f6, #8b5cf6)",
+                boxShadow: "0 0 20px rgba(139,92,246,0.45)",
+              }}
+            >
+              U
+            </div>
             <div>
-              <span className="font-semibold text-sm block" style={{ color: "var(--text)" }}>UrbanFlow</span>
-              <span className="text-xs font-medium" style={{ color: "var(--accent)" }}>AI</span>
+              <span className="font-bold text-sm block" style={{ color: "var(--text)" }}>UrbanFlow</span>
+              <span
+                className="text-[11px] font-semibold"
+                style={{
+                  background: "linear-gradient(90deg, #3b82f6, #8b5cf6)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                }}
+              >
+                AI Intelligence
+              </span>
             </div>
           </Link>
         </div>
 
-        {/* Nav */}
-        <nav className="flex-1 px-3 py-4 flex flex-col gap-0.5 overflow-y-auto">
-          {NAV.map((n) => {
-            const href = `${n.href}?city=${encodeURIComponent(city)}`;
-            const active = pathname === n.href;
-            return (
-              <Link key={n.href} href={href}
-                className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all"
-                style={{
-                  color: active ? "var(--accent)" : "var(--muted)",
-                  background: active ? "var(--accent-glow)" : "transparent",
-                  borderLeft: active ? "2px solid var(--accent)" : "2px solid transparent",
-                }}>
-                <span className="text-base">{n.icon}</span>
-                <span>{n.label}</span>
-              </Link>
-            );
-          })}
+        {/* Nav groups */}
+        <nav className="flex-1 px-3 py-3 flex flex-col overflow-y-auto" style={{ gap: 0 }}>
+          {NAV_GROUPS.map((group) => (
+            <div key={group.label} className="mb-3">
+              <p
+                className="text-[9px] font-black tracking-[0.15em] px-3 py-1.5"
+                style={{ color: "var(--muted)", opacity: 0.45, letterSpacing: "0.15em" }}
+              >
+                {group.label}
+              </p>
+              {group.items.map((n) => {
+                const href = `${n.href}?city=${encodeURIComponent(city)}`;
+                const active = pathname === n.href;
+                return (
+                  <Link
+                    key={n.href}
+                    href={href}
+                    className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all mb-0.5 group"
+                    style={{
+                      color: active ? "white" : "var(--muted)",
+                      background: active
+                        ? "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(139,92,246,0.12))"
+                        : "transparent",
+                      borderLeft: `2px solid ${active ? "#3b82f6" : "transparent"}`,
+                    }}
+                  >
+                    <span className="w-5 text-center text-base" style={{ opacity: active ? 1 : 0.65 }}>{n.icon}</span>
+                    <span className="flex-1 text-[13px]">{n.label}</span>
+                    {active && (
+                      <span
+                        className="w-1.5 h-1.5 rounded-full"
+                        style={{ background: "#3b82f6", boxShadow: "0 0 6px #3b82f6" }}
+                      />
+                    )}
+                  </Link>
+                );
+              })}
+            </div>
+          ))}
         </nav>
 
-        {/* City selector + live status */}
-        <div className="px-4 py-4 border-t border-[var(--border)] flex flex-col gap-3">
+        {/* City selector + status */}
+        <div
+          className="px-4 py-4 flex flex-col gap-3"
+          style={{ borderTop: "1px solid var(--border)", flexShrink: 0 }}
+        >
           {liveStatus && (
             <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
               {liveStatus}
             </div>
           )}
-          <select
-            value={city}
-            onChange={(e) => onCityChange(e.target.value)}
-            className="text-xs w-full"
-          >
-            {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-          </select>
+          <div>
+            <label
+              className="text-[9px] font-black tracking-[0.12em] mb-1.5 block flex items-center gap-1"
+              style={{ color: "var(--muted)", opacity: 0.5 }}
+            >
+              📍 ACTIVE CITY
+            </label>
+            <select
+              value={city}
+              onChange={(e) => onCityChange(e.target.value)}
+              className="text-xs w-full px-3 py-2 rounded-lg"
+              style={{
+                background: "var(--card2)",
+                border: "1px solid var(--border)",
+                color: "var(--text)",
+              }}
+            >
+              {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+            </select>
+          </div>
         </div>
       </aside>
     </>
