@@ -37,9 +37,10 @@ function ServicesContent() {
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { wait: number; label: string; explain: string }>>({});
-  const [arriveAt, setArriveAt] = useState(() => {
+  const [showFuturePanel, setShowFuturePanel] = useState(false);
+  const [futureTime, setFutureTime] = useState(() => {
     const d = new Date(); d.setSeconds(0, 0);
-    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours()+1)}:${p(d.getMinutes())}`;
   });
 
   const fetchServices = useCallback(async () => {
@@ -56,7 +57,7 @@ function ServicesContent() {
   async function handlePredict(service: LocalService) {
     setPredicting(service.id);
     try {
-      const res = await predictService(service.id, new Date(arriveAt).toISOString());
+      const res = await predictService(service.id, new Date(futureTime).toISOString());
       setPredictions(prev => ({ ...prev, [service.id]: { wait: res.predicted_wait_minutes, label: res.wait_label, explain: res.explanation } }));
     } catch {
       setToast("Prediction failed");
@@ -96,9 +97,35 @@ function ServicesContent() {
                 ⊙ Map
               </button>
             </div>
-            <input type="datetime-local" value={arriveAt} onChange={e => setArriveAt(e.target.value)} className="text-xs" />
+            <button
+              onClick={() => setShowFuturePanel(v => !v)}
+              className="btn-ghost text-xs flex items-center gap-1.5"
+              style={showFuturePanel ? { borderColor: "rgba(139,92,246,0.5)", color: "#a78bfa" } : {}}
+            >
+              🔮 {showFuturePanel ? "Hide" : "Future AI Predict"}
+            </button>
           </div>
         </div>
+
+        {showFuturePanel && (
+          <div className="p-4 rounded-xl mb-6 flex flex-col sm:flex-row sm:items-center gap-3 animate-fade-in"
+            style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)" }}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: "#a78bfa" }}>🔮</span>
+              <span className="text-xs font-medium" style={{ color: "#a78bfa" }}>Predict for future time:</span>
+            </div>
+            <input
+              type="datetime-local"
+              value={futureTime}
+              onChange={e => setFutureTime(e.target.value)}
+              className="text-xs"
+              min={new Date().toISOString().slice(0,16)}
+            />
+            <p className="text-xs" style={{ color: "var(--muted)" }}>
+              Click ⬡ Predict on any card below to get AI forecast for this time
+            </p>
+          </div>
+        )}
 
         {/* Category filter */}
         <div className="flex gap-2 mb-6 overflow-x-auto pb-1">
@@ -179,14 +206,14 @@ function ServicesContent() {
 
                   {pred && (
                     <div className="p-2.5 rounded-lg text-xs" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.15)" }}>
-                      <span style={{ color: "#c084fc" }}>AI at {new Date(arriveAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: </span>
+                      <span style={{ color: "#c084fc" }}>AI at {new Date(futureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: </span>
                       <span style={{ color: "var(--text)" }}>{pred.wait} min ({pred.label})</span>
                       <p className="mt-0.5" style={{ color: "var(--muted)" }}>{pred.explain}</p>
                     </div>
                   )}
 
                   <div className="flex gap-2 pt-1">
-                    <button onClick={() => handlePredict(s)} disabled={predicting === s.id} className="btn-ghost text-xs flex-1">
+                    <button onClick={() => { if (!showFuturePanel) setShowFuturePanel(true); handlePredict(s); }} disabled={predicting === s.id} className="btn-ghost text-xs flex-1">
                       {predicting === s.id ? "Predicting…" : "⬡ Predict Wait"}
                     </button>
                     <button onClick={() => setBestTimeService(s)} className="btn-ghost text-xs flex-1">⏱ Best Time</button>

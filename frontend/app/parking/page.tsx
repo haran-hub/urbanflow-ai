@@ -27,9 +27,10 @@ function ParkingContent() {
   // Predict state
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { pct: number; spots: number; explain: string }>>({});
-  const [arriveAt, setArriveAt] = useState(() => {
+  const [showFuturePanel, setShowFuturePanel] = useState(false);
+  const [futureTime, setFutureTime] = useState(() => {
     const d = new Date(); d.setSeconds(0, 0);
-    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours()+1)}:${p(d.getMinutes())}`;
   });
 
   // Recommend state
@@ -51,7 +52,7 @@ function ParkingContent() {
   async function handlePredict(zone: ParkingZone) {
     setPredicting(zone.id);
     try {
-      const res = await predictParking(zone.id, new Date(arriveAt).toISOString());
+      const res = await predictParking(zone.id, new Date(futureTime).toISOString());
       setPredictions(prev => ({
         ...prev,
         [zone.id]: {
@@ -70,7 +71,7 @@ function ParkingContent() {
   async function handleRecommend() {
     setRecommending(true);
     try {
-      const res = await recommendParking(37.7749, -122.4194, new Date(arriveAt).toISOString(), 2, city);
+      const res = await recommendParking(37.7749, -122.4194, new Date(futureTime).toISOString(), 2, city);
       setRecommendation(res.recommendation);
       setShowRecommend(true);
     } catch {
@@ -109,17 +110,38 @@ function ParkingContent() {
                 ⊙ Map
               </button>
             </div>
-            <input
-              type="datetime-local"
-              value={arriveAt}
-              onChange={e => setArriveAt(e.target.value)}
-              className="text-xs"
-            />
+            <button
+              onClick={() => setShowFuturePanel(v => !v)}
+              className="btn-ghost text-xs flex items-center gap-1.5"
+              style={showFuturePanel ? { borderColor: "rgba(139,92,246,0.5)", color: "#a78bfa" } : {}}
+            >
+              🔮 {showFuturePanel ? "Hide" : "Future AI Predict"}
+            </button>
             <button onClick={handleRecommend} disabled={recommending} className="btn-primary text-xs">
               {recommending ? "Thinking…" : "✦ AI Recommend"}
             </button>
           </div>
         </div>
+
+        {showFuturePanel && (
+          <div className="p-4 rounded-xl mb-6 flex flex-col sm:flex-row sm:items-center gap-3 animate-fade-in"
+            style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)" }}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: "#a78bfa" }}>🔮</span>
+              <span className="text-xs font-medium" style={{ color: "#a78bfa" }}>Predict for future time:</span>
+            </div>
+            <input
+              type="datetime-local"
+              value={futureTime}
+              onChange={e => setFutureTime(e.target.value)}
+              className="text-xs"
+              min={new Date().toISOString().slice(0,16)}
+            />
+            <p className="text-xs" style={{ color: "var(--muted)" }}>
+              Click ⬡ Predict on any card below to get AI forecast for this time
+            </p>
+          </div>
+        )}
 
         {/* AI Recommendation */}
         {showRecommend && recommendation && (
@@ -191,7 +213,7 @@ function ParkingContent() {
 
                   {pred && (
                     <div className="p-3 rounded-lg text-xs" style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
-                      <p style={{ color: "#93c5fd" }}>AI Prediction for {new Date(arriveAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}:</p>
+                      <p style={{ color: "#93c5fd" }}>AI Prediction for {new Date(futureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}:</p>
                       <p className="mt-1" style={{ color: "var(--text)" }}>
                         {pred.spots} spots available ({pred.pct.toFixed(0)}% full)
                       </p>
@@ -201,7 +223,7 @@ function ParkingContent() {
 
                   <div className="flex gap-2 pt-1">
                     <button
-                      onClick={() => handlePredict(zone)}
+                      onClick={() => { if (!showFuturePanel) setShowFuturePanel(true); handlePredict(zone); }}
                       disabled={predicting === zone.id}
                       className="btn-ghost text-xs flex-1"
                     >

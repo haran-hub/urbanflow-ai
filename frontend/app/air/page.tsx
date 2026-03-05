@@ -39,9 +39,10 @@ function AirContent() {
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { aqi: number; category: string; advisory: string; explain: string }>>({});
   const [toast, setToast] = useState<string | null>(null);
-  const [arriveAt, setArriveAt] = useState(() => {
+  const [showFuturePanel, setShowFuturePanel] = useState(false);
+  const [futureTime, setFutureTime] = useState(() => {
     const d = new Date(); d.setSeconds(0, 0);
-    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours()+1)}:${p(d.getMinutes())}`;
   });
 
   const fetchStations = useCallback(async () => {
@@ -58,7 +59,7 @@ function AirContent() {
   async function handlePredict(station: AirStation) {
     setPredicting(station.id);
     try {
-      const res = await predictAir(station.id, new Date(arriveAt).toISOString());
+      const res = await predictAir(station.id, new Date(futureTime).toISOString());
       setPredictions(prev => ({
         ...prev,
         [station.id]: {
@@ -104,9 +105,35 @@ function AirContent() {
                 ⊙ Map
               </button>
             </div>
-            <input type="datetime-local" value={arriveAt} onChange={e => setArriveAt(e.target.value)} className="text-xs" />
+            <button
+              onClick={() => setShowFuturePanel(v => !v)}
+              className="btn-ghost text-xs flex items-center gap-1.5"
+              style={showFuturePanel ? { borderColor: "rgba(139,92,246,0.5)", color: "#a78bfa" } : {}}
+            >
+              🔮 {showFuturePanel ? "Hide" : "Future AI Predict"}
+            </button>
           </div>
         </div>
+
+        {showFuturePanel && (
+          <div className="p-4 rounded-xl mb-6 flex flex-col sm:flex-row sm:items-center gap-3 animate-fade-in"
+            style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)" }}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: "#a78bfa" }}>🔮</span>
+              <span className="text-xs font-medium" style={{ color: "#a78bfa" }}>Predict for future time:</span>
+            </div>
+            <input
+              type="datetime-local"
+              value={futureTime}
+              onChange={e => setFutureTime(e.target.value)}
+              className="text-xs"
+              min={new Date().toISOString().slice(0,16)}
+            />
+            <p className="text-xs" style={{ color: "var(--muted)" }}>
+              Click ⬡ Predict on any card below to get AI forecast for this time
+            </p>
+          </div>
+        )}
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -193,14 +220,14 @@ function AirContent() {
 
                   {pred && (
                     <div className="p-2.5 rounded-lg text-xs" style={{ background: `rgba(6,182,212,0.06)`, border: `1px solid rgba(6,182,212,0.15)` }}>
-                      <span style={{ color: ACCENT }}>AI at {new Date(arriveAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: </span>
+                      <span style={{ color: ACCENT }}>AI at {new Date(futureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: </span>
                       <span style={{ color: "var(--text)" }}>AQI {pred.aqi} ({pred.category})</span>
                       <p className="mt-0.5" style={{ color: "var(--muted)" }}>{pred.explain}</p>
                     </div>
                   )}
 
                   <div className="flex gap-2 pt-1">
-                    <button onClick={() => handlePredict(s)} disabled={predicting === s.id} className="btn-ghost text-xs flex-1">
+                    <button onClick={() => { if (!showFuturePanel) setShowFuturePanel(true); handlePredict(s); }} disabled={predicting === s.id} className="btn-ghost text-xs flex-1">
                       {predicting === s.id ? "Predicting…" : "⬡ Predict AQI"}
                     </button>
                   </div>

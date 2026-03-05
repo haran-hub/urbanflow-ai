@@ -28,9 +28,10 @@ function EVContent() {
 
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { wait: number; explain: string }>>({});
-  const [arriveAt, setArriveAt] = useState(() => {
+  const [showFuturePanel, setShowFuturePanel] = useState(false);
+  const [futureTime, setFutureTime] = useState(() => {
     const d = new Date(); d.setSeconds(0, 0);
-    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
+    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours()+1)}:${p(d.getMinutes())}`;
   });
 
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
@@ -52,7 +53,7 @@ function EVContent() {
   async function handlePredict(station: EVStation) {
     setPredicting(station.id);
     try {
-      const res = await predictEV(station.id, new Date(arriveAt).toISOString());
+      const res = await predictEV(station.id, new Date(futureTime).toISOString());
       setPredictions(prev => ({ ...prev, [station.id]: { wait: res.predicted_wait_minutes, explain: res.explanation } }));
     } catch {
       setToast("Prediction failed");
@@ -110,12 +111,38 @@ function EVContent() {
                 className="text-xs w-16"
               />
             </div>
-            <input type="datetime-local" value={arriveAt} onChange={e => setArriveAt(e.target.value)} className="text-xs" />
+            <button
+              onClick={() => setShowFuturePanel(v => !v)}
+              className="btn-ghost text-xs flex items-center gap-1.5"
+              style={showFuturePanel ? { borderColor: "rgba(139,92,246,0.5)", color: "#a78bfa" } : {}}
+            >
+              🔮 {showFuturePanel ? "Hide" : "Future AI Predict"}
+            </button>
             <button onClick={handleRecommend} disabled={recommending} className="btn-primary text-xs" style={{ background: "#f59e0b" }}>
               {recommending ? "Thinking…" : "✦ Best Station"}
             </button>
           </div>
         </div>
+
+        {showFuturePanel && (
+          <div className="p-4 rounded-xl mb-6 flex flex-col sm:flex-row sm:items-center gap-3 animate-fade-in"
+            style={{ background: "rgba(139,92,246,0.06)", border: "1px solid rgba(139,92,246,0.2)" }}>
+            <div className="flex items-center gap-2">
+              <span className="text-sm" style={{ color: "#a78bfa" }}>🔮</span>
+              <span className="text-xs font-medium" style={{ color: "#a78bfa" }}>Predict for future time:</span>
+            </div>
+            <input
+              type="datetime-local"
+              value={futureTime}
+              onChange={e => setFutureTime(e.target.value)}
+              className="text-xs"
+              min={new Date().toISOString().slice(0,16)}
+            />
+            <p className="text-xs" style={{ color: "var(--muted)" }}>
+              Click ⬡ Predict on any card below to get AI forecast for this time
+            </p>
+          </div>
+        )}
 
         {recommendation && (
           <div className="p-4 rounded-xl mb-6 animate-slide-up" style={{ background: "rgba(245,158,11,0.08)", border: "1px solid rgba(245,158,11,0.3)" }}>
@@ -191,7 +218,7 @@ function EVContent() {
                   )}
 
                   <div className="flex gap-2 pt-1">
-                    <button onClick={() => handlePredict(s)} disabled={predicting === s.id} className="btn-ghost text-xs flex-1">
+                    <button onClick={() => { if (!showFuturePanel) setShowFuturePanel(true); handlePredict(s); }} disabled={predicting === s.id} className="btn-ghost text-xs flex-1">
                       {predicting === s.id ? "…" : "⬡ Predict Wait"}
                     </button>
                     <button onClick={() => setBestTimeStation(s)} className="btn-ghost text-xs flex-1">⏱ Best Time</button>
