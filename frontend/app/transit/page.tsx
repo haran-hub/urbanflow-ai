@@ -25,7 +25,7 @@ function TransitContent() {
   const [predictions, setPredictions] = useState<Record<string, { level: number; label: string; explain: string }>>({});
   const [departAt, setDepartAt] = useState(() => {
     const d = new Date(); d.setHours(d.getHours() + 1, 0, 0, 0);
-    return d.toISOString().slice(0, 16);
+    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
   });
 
   const fetchRoutes = useCallback(async () => {
