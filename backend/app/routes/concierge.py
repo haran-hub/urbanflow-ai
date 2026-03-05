@@ -12,7 +12,7 @@ from typing import Literal
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, desc, func
+from sqlalchemy import select, desc
 
 import anthropic
 
@@ -44,174 +44,153 @@ def _get_client() -> anthropic.AsyncAnthropic | None:
     return _client
 
 
-async def _latest_snaps_bulk(db, snap_model, fk_field, entity_ids: list[str]) -> dict:
-    """Fetch the latest snapshot for each entity_id in one query using a subquery."""
-    if not entity_ids:
-        return {}
-    # Subquery: max timestamp per entity
-    sub = (
-        select(
-            getattr(snap_model, fk_field),
-            func.max(snap_model.timestamp).label("max_ts"),
-        )
-        .where(getattr(snap_model, fk_field).in_(entity_ids))
-        .group_by(getattr(snap_model, fk_field))
-        .subquery()
-    )
-    rows = (
+async def _snap(db, model, fk_col, entity_id):
+    """Fetch the single latest snapshot for one entity."""
+    return (
         await db.execute(
-            select(snap_model).join(
-                sub,
-                (getattr(snap_model, fk_field) == sub.c[fk_field])
-                & (snap_model.timestamp == sub.c.max_ts),
-            )
+            select(model)
+            .where(getattr(model, fk_col) == entity_id)
+            .order_by(desc(model.timestamp))
+            .limit(1)
         )
-    ).scalars().all()
-    return {getattr(r, fk_field): r for r in rows}
+    ).scalar_one_or_none()
 
 
 async def _build_rich_context(db: AsyncSession, city: str) -> str:
     """
-    Build entity-level city data for Claude: actual names, addresses, real numbers.
-    Uses bulk queries (not N+1) so it stays fast.
+    Build entity-level city data: actual names, addresses, real numbers.
+    Claude uses this to give specific, varied answers.
     """
-    lines = [
+    parts: list[str] = [
         f"=== LIVE {city.upper()} DATA — {datetime.utcnow().strftime('%A %H:%M UTC')} ===",
         "",
     ]
 
     # ── Parking ────────────────────────────────────────────────────────────────
     zones = (await db.execute(select(ParkingZone).where(ParkingZone.city == city))).scalars().all()
-    snaps = await _latest_snaps_bulk(db, ParkingSnapshot, "zone_id", [z.id for z in zones])
     rows = []
     for z in zones:
-        s = snaps.get(z.id)
+        s = await _snap(db, ParkingSnapshot, "zone_id", z.id)
         avail = s.available_spots if s else z.total_spots
         occ = round((s.occupancy_pct or 0) * 100) if s else 0
         rate = f"${z.hourly_rate}/hr" if z.hourly_rate > 0 else "Free"
-        rows.append((avail, f"• {z.name} [{z.zone_type}] {avail}/{z.total_spots} spots ({occ}% full) {rate} — {z.address}"))
-    rows.sort(key=lambda x: x[0], reverse=True)
-    lines.append("PARKING (most available first):")
-    lines += [r for _, r in rows[:8]]
-    lines.append("")
+        rows.append((avail, f"  • {z.name} [{z.zone_type}] — {avail}/{z.total_spots} spots ({occ}% full) {rate} — {z.address}"))
+    rows.sort(reverse=True)
+    parts.append("PARKING (most available first):")
+    parts += [r for _, r in rows[:8]]
+    parts.append("")
 
     # ── EV Charging ────────────────────────────────────────────────────────────
     stations = (await db.execute(select(EVStation).where(EVStation.city == city))).scalars().all()
-    snaps = await _latest_snaps_bulk(db, EVSnapshot, "station_id", [s.id for s in stations])
     rows = []
     for st in stations:
-        s = snaps.get(st.id)
+        s = await _snap(db, EVSnapshot, "station_id", st.id)
         avail = s.available_ports if s else st.total_ports
         wait = s.avg_wait_minutes if s else 0
         wait_str = f"{wait}min wait" if wait > 0 else "no queue"
-        rows.append((avail, f"• {st.name} ({st.network}) {avail}/{st.total_ports} ports — {wait_str} — {st.address}"))
-    rows.sort(key=lambda x: x[0], reverse=True)
-    lines.append("EV CHARGING (most available first):")
-    lines += [r for _, r in rows[:6]]
-    lines.append("")
+        rows.append((avail, f"  • {st.name} ({st.network}) — {avail}/{st.total_ports} ports, {wait_str} — {st.address}"))
+    rows.sort(reverse=True)
+    parts.append("EV CHARGING (most available first):")
+    parts += [r for _, r in rows[:6]]
+    parts.append("")
 
     # ── Transit ────────────────────────────────────────────────────────────────
     routes = (await db.execute(select(TransitRoute).where(TransitRoute.city == city))).scalars().all()
-    snaps = await _latest_snaps_bulk(db, TransitSnapshot, "route_id", [r.id for r in routes])
     rows = []
     for r in routes:
-        s = snaps.get(r.id)
+        s = await _snap(db, TransitSnapshot, "route_id", r.id)
         crowd = s.occupancy_level if s else 0
         delay = s.delay_minutes if s else 0
         nxt = s.next_arrival_mins if s else r.frequency_mins
         label = "Empty" if crowd < 30 else "Comfortable" if crowd < 60 else "Busy" if crowd < 80 else "Packed"
-        delay_str = f" ⚠{delay}min delay" if delay > 3 else " on-time"
-        rows.append((crowd, f"• {r.name} [{r.route_type}] {label} ({crowd}%){delay_str} — next in {nxt}min"))
-    rows.sort(key=lambda x: x[0])  # least crowded first
-    lines.append("TRANSIT (least crowded first):")
-    lines += [r for _, r in rows[:8]]
-    lines.append("")
+        delay_str = f" ⚠ {delay}min late" if delay > 3 else " on-time"
+        rows.append((crowd, f"  • {r.name} [{r.route_type}] — {label} ({crowd}%){delay_str}, next in {nxt}min"))
+    rows.sort()
+    parts.append("TRANSIT (least crowded first):")
+    parts += [r for _, r in rows[:8]]
+    parts.append("")
 
     # ── Local Services ─────────────────────────────────────────────────────────
     svcs = (await db.execute(select(LocalService).where(LocalService.city == city))).scalars().all()
-    snaps = await _latest_snaps_bulk(db, ServiceSnapshot, "service_id", [sv.id for sv in svcs])
-    open_lines, closed_names = [], []
+    open_lines: list[tuple] = []
+    closed_names: list[str] = []
     for sv in svcs:
-        s = snaps.get(sv.id)
+        s = await _snap(db, ServiceSnapshot, "service_id", sv.id)
         if s and s.is_open:
-            wait = s.estimated_wait_minutes
-            wait_str = f"{wait}min wait" if wait > 0 else "no wait"
-            open_lines.append((wait, f"• {sv.name} [{sv.category}] {wait_str} — {sv.address}"))
+            wait_str = f"{s.estimated_wait_minutes}min wait" if s.estimated_wait_minutes > 0 else "no wait"
+            open_lines.append((s.estimated_wait_minutes, f"    • {sv.name} [{sv.category}] — {wait_str} — {sv.address}"))
         else:
             closed_names.append(sv.name)
     open_lines.sort()
-    lines.append("LOCAL SERVICES:")
+    parts.append("LOCAL SERVICES:")
     if open_lines:
-        lines.append("  Open now:")
-        lines += [f"    {r}" for _, r in open_lines[:8]]
+        parts.append("  Open now:")
+        parts += [r for _, r in open_lines[:8]]
     if closed_names:
-        lines.append(f"  Closed ({len(closed_names)}): {', '.join(closed_names[:6])}")
-    lines.append("")
+        parts.append(f"  Closed: {', '.join(closed_names[:6])}")
+    parts.append("")
 
     # ── Air Quality ────────────────────────────────────────────────────────────
     air_sts = (await db.execute(select(AirStation).where(AirStation.city == city))).scalars().all()
-    snaps = await _latest_snaps_bulk(db, AirSnapshot, "station_id", [a.id for a in air_sts])
-    lines.append("AIR QUALITY:")
+    parts.append("AIR QUALITY:")
     for a in air_sts[:4]:
-        s = snaps.get(a.id)
+        s = await _snap(db, AirSnapshot, "station_id", a.id)
         if s:
-            pollen_label = ["None", "Low", "Medium", "High", "Very High"][min(s.pollen_level, 4)]
-            lines.append(
-                f"• {a.name}: AQI {s.aqi} ({s.category}) — PM2.5:{s.pm25:.1f} O3:{s.o3:.1f} "
-                f"UV:{s.uv_index:.0f} Pollen:{pollen_label}"
+            pollen_labels = ["None", "Low", "Medium", "High", "Very High"]
+            pollen = pollen_labels[min(s.pollen_level, 4)]
+            parts.append(
+                f"  • {a.name}: AQI {s.aqi} ({s.category}) — "
+                f"PM2.5:{s.pm25:.1f} O3:{s.o3:.1f} UV:{s.uv_index:.0f} Pollen:{pollen}"
             )
-    lines.append("")
+    parts.append("")
 
     # ── Bikes ──────────────────────────────────────────────────────────────────
     bss = (await db.execute(select(BikeStation).where(BikeStation.city == city))).scalars().all()
-    snaps = await _latest_snaps_bulk(db, BikeSnapshot, "station_id", [bs.id for bs in bss])
     rows = []
     for bs in bss:
-        s = snaps.get(bs.id)
+        s = await _snap(db, BikeSnapshot, "station_id", bs.id)
         if s:
             total = s.available_bikes + s.available_ebikes
-            rows.append((total, f"• {bs.name}: {s.available_bikes} bikes + {s.available_ebikes} e-bikes, {s.available_docks} empty docks — {bs.address}"))
-    rows.sort(key=lambda x: x[0], reverse=True)
-    lines.append("BIKE SHARE (most available first):")
-    lines += [r for _, r in rows[:6]]
-    lines.append("")
+            rows.append((total, f"  • {bs.name} — {s.available_bikes} bikes + {s.available_ebikes} e-bikes, {s.available_docks} empty docks — {bs.address}"))
+    rows.sort(reverse=True)
+    parts.append("BIKE SHARE (most available first):")
+    parts += [r for _, r in rows[:6]]
+    parts.append("")
 
     # ── Food Trucks ────────────────────────────────────────────────────────────
     trucks = (await db.execute(select(FoodTruck).where(FoodTruck.city == city))).scalars().all()
-    snaps = await _latest_snaps_bulk(db, FoodTruckSnapshot, "truck_id", [t.id for t in trucks])
-    open_trucks, closed_trucks = [], []
+    open_trucks: list[tuple] = []
+    closed_trucks: list[str] = []
     for t in trucks:
-        s = snaps.get(t.id)
+        s = await _snap(db, FoodTruckSnapshot, "truck_id", t.id)
         if s and s.is_open:
-            wait = s.wait_minutes
-            wait_str = f"{wait}min wait" if wait > 0 else "no wait"
-            open_trucks.append((wait, f"• {t.name} [{t.cuisine}] {wait_str}, {s.crowd_level}% crowd — {t.address}"))
+            wait_str = f"{s.wait_minutes}min wait" if s.wait_minutes > 0 else "no wait"
+            open_trucks.append((s.wait_minutes, f"    • {t.name} [{t.cuisine}] — {wait_str}, {s.crowd_level}% crowd — {t.address}"))
         else:
             closed_trucks.append(t.name)
     open_trucks.sort()
-    lines.append("FOOD TRUCKS:")
+    parts.append("FOOD TRUCKS:")
     if open_trucks:
-        lines.append("  Open now:")
-        lines += [f"    {r}" for _, r in open_trucks[:8]]
+        parts.append("  Open now:")
+        parts += [r for _, r in open_trucks[:8]]
     else:
-        lines.append("  None open right now")
+        parts.append("  None open right now")
     if closed_trucks:
-        lines.append(f"  Closed: {', '.join(closed_trucks[:5])}")
-    lines.append("")
+        parts.append(f"  Closed: {', '.join(closed_trucks[:5])}")
+    parts.append("")
 
     # ── Noise & Vibe ───────────────────────────────────────────────────────────
     nzs = (await db.execute(select(NoiseZone).where(NoiseZone.city == city))).scalars().all()
-    snaps = await _latest_snaps_bulk(db, NoiseSnapshot, "zone_id", [nz.id for nz in nzs])
     rows = []
     for nz in nzs:
-        s = snaps.get(nz.id)
+        s = await _snap(db, NoiseSnapshot, "zone_id", nz.id)
         if s:
-            rows.append((s.vibe_score, f"• {nz.name} [{nz.zone_type}] {s.vibe_label} — vibe {s.vibe_score}/100, {s.noise_db:.0f}dB, {s.crowd_density}% crowd — {nz.address}"))
-    rows.sort(key=lambda x: x[0], reverse=True)
-    lines.append("NEIGHBORHOOD VIBE (liveliest first):")
-    lines += [r for _, r in rows[:6]]
+            rows.append((s.vibe_score, f"  • {nz.name} [{nz.zone_type}] — {s.vibe_label}, vibe {s.vibe_score}/100, {s.noise_db:.0f}dB, {s.crowd_density}% crowd — {nz.address}"))
+    rows.sort(reverse=True)
+    parts.append("NEIGHBORHOOD VIBE (liveliest first):")
+    parts += [r for _, r in rows[:6]]
 
-    return "\n".join(lines)
+    return "\n".join(parts)
 
 
 class ChatMessage(BaseModel):
@@ -227,9 +206,8 @@ class AskRequest(BaseModel):
 
 @router.post("/ask")
 async def ask_concierge(request: AskRequest, db: AsyncSession = Depends(get_db)):
-    """Multi-turn city Q&A with entity-level live data injected into every request."""
+    """Multi-turn city Q&A backed by live entity-level data."""
 
-    # Build rich context — wrap so errors here don't kill the whole endpoint
     try:
         ctx = await _build_rich_context(db, request.city)
     except Exception as e:
@@ -240,8 +218,8 @@ async def ask_concierge(request: AskRequest, db: AsyncSession = Depends(get_db))
     if not client:
         return {
             "answer": (
-                f"My AI connection isn't available right now (no API key configured). "
-                f"But here's what I can see for {request.city}: " + ctx[:300]
+                f"AI connection not configured (no API key). "
+                f"Live data is available — check the individual city pages!"
             ),
             "city": request.city,
             "timestamp": datetime.utcnow().isoformat() + "Z",
@@ -249,19 +227,16 @@ async def ask_concierge(request: AskRequest, db: AsyncSession = Depends(get_db))
 
     system = (
         f"You are UrbanFlow AI, a sharp, friendly city concierge for {request.city}. "
-        "You have access to REAL-TIME city data injected below — use it to give SPECIFIC answers. "
-        "Always name actual places, quote real numbers, and reference the data directly. "
-        "Examples:\n"
-        "  Q: 'Where should I park?' → Name the top 2-3 parking zones with spot counts and rates.\n"
-        "  Q: 'Is air quality safe for a run?' → Quote the AQI number and category, say yes/no clearly.\n"
-        "  Q: 'What food trucks are open?' → List actual truck names and cuisines.\n"
-        "  Q: 'Which transit is least crowded?' → Name the specific route and its crowd %.\n"
-        "Never say 'I don't have access to real-time data' — you DO have it. "
-        "Be conversational and direct. Under 120 words unless asked for details.\n\n"
-        f"--- LIVE DATA ---\n{ctx}\n--- END DATA ---"
+        "You have REAL-TIME city data below. Always answer with SPECIFIC details from it: "
+        "actual names, real numbers, actual addresses. Never be vague. Examples:\n"
+        "  'Where to park?' → name the top 2-3 zones with spot counts and rates.\n"
+        "  'Air safe for a run?' → quote the AQI number and say yes/no clearly.\n"
+        "  'Food trucks open?' → list actual truck names and cuisines.\n"
+        "  'Least crowded transit?' → name the route and its exact crowd %.\n"
+        "Be conversational and direct. Under 120 words unless asked for more.\n\n"
+        f"--- LIVE DATA ---\n{ctx}\n--- END ---"
     )
 
-    # Build multi-turn message list (last 10 exchanges for context)
     messages: list[dict] = [
         {"role": m.role, "content": m.content}
         for m in request.history[-10:]
@@ -277,9 +252,8 @@ async def ask_concierge(request: AskRequest, db: AsyncSession = Depends(get_db))
         )
         answer = msg.content[0].text.strip()
     except Exception as e:
-        logger.error(f"Claude API error in concierge: {e}", exc_info=True)
-        # Smart fallback: answer from the data we already have
-        answer = _data_driven_fallback(request.question, ctx)
+        logger.error(f"Claude API error: {e}", exc_info=True)
+        answer = _data_fallback(request.question, ctx)
 
     return {
         "answer": answer,
@@ -288,46 +262,33 @@ async def ask_concierge(request: AskRequest, db: AsyncSession = Depends(get_db))
     }
 
 
-def _data_driven_fallback(question: str, ctx: str) -> str:
-    """When Claude is unavailable, extract relevant lines from the context."""
+def _data_fallback(question: str, ctx: str) -> str:
+    """Return relevant data lines when Claude is unavailable."""
     q = question.lower()
     lines = ctx.splitlines()
 
-    if any(w in q for w in ["park", "spot", "car", "garage"]):
-        section = _extract_section(lines, "PARKING")
-        return f"Current parking data:\n{section}" if section else "Check the Parking page for live availability."
+    section_map = {
+        ("park", "spot", "garage", "lot", "car"): "PARKING",
+        ("ev", "charg", "electric", "plug", "port"): "EV CHARGING",
+        ("transit", "bus", "train", "subway", "route", "crowd"): "TRANSIT",
+        ("hospital", "bank", "pharmacy", "dmv", "service", "wait"): "LOCAL SERVICES",
+        ("air", "aqi", "pollution", "run", "outdoor", "breath", "pollen", "uv"): "AIR QUALITY",
+        ("bike", "ebike", "scooter", "dock", "cycle"): "BIKE SHARE",
+        ("food", "truck", "eat", "taco", "lunch", "dinner", "cuisine"): "FOOD TRUCKS",
+        ("vibe", "noise", "night", "bar", "downtown", "scene", "energy", "crowd"): "NEIGHBORHOOD VIBE",
+    }
 
-    if any(w in q for w in ["ev", "charge", "electric", "plug", "charger"]):
-        section = _extract_section(lines, "EV CHARGING")
-        return f"Current EV data:\n{section}" if section else "Check the EV Charging page for port availability."
+    for keywords, heading in section_map.items():
+        if any(k in q for k in keywords):
+            section = _extract(lines, heading)
+            return f"{heading}:\n{section}" if section else f"Check the {heading.title()} page for live data."
 
-    if any(w in q for w in ["transit", "bus", "subway", "train", "route", "crowd"]):
-        section = _extract_section(lines, "TRANSIT")
-        return f"Current transit data:\n{section}" if section else "Check the Transit page for crowd levels."
-
-    if any(w in q for w in ["air", "aqi", "pollution", "run", "outdoor", "breathe", "pollen"]):
-        section = _extract_section(lines, "AIR QUALITY")
-        return f"Current air quality:\n{section}" if section else "Check the Air Quality page."
-
-    if any(w in q for w in ["food", "truck", "eat", "restaurant", "hungry", "lunch", "dinner"]):
-        section = _extract_section(lines, "FOOD TRUCKS")
-        return f"Current food truck status:\n{section}" if section else "Check the Food Trucks page."
-
-    if any(w in q for w in ["bike", "scooter", "cycle", "dock"]):
-        section = _extract_section(lines, "BIKE SHARE")
-        return f"Current bike availability:\n{section}" if section else "Check the Bikes page."
-
-    if any(w in q for w in ["vibe", "noise", "nightlife", "bar", "downtown", "scene", "energy"]):
-        section = _extract_section(lines, "NEIGHBORHOOD VIBE")
-        return f"Current neighborhood vibe:\n{section}" if section else "Check the Noise & Vibe page."
-
-    return "I'm having trouble with my AI connection right now. Check the individual category pages for live data!"
+    return "Check the individual category pages for live city data!"
 
 
-def _extract_section(lines: list[str], heading: str) -> str:
-    """Extract up to 5 lines after a section heading."""
+def _extract(lines: list[str], heading: str) -> str:
     for i, line in enumerate(lines):
         if heading in line:
-            relevant = [l for l in lines[i + 1: i + 7] if l.strip()]
-            return "\n".join(relevant[:5])
+            relevant = [l for l in lines[i + 1: i + 10] if l.strip()]
+            return "\n".join(relevant[:6])
     return ""
