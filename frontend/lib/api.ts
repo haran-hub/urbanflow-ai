@@ -3,6 +3,7 @@ import type {
   DashboardOverview, ParkingZone, EVStation, TransitRoute, LocalService,
   AirStation, BikeStation, FoodTruck, NoiseZone,
   Prediction, Recommendation, BestTime, UrbanPlan,
+  PulseScore, ConciergeResponse, CompareData, SurgeData,
 } from "./types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -126,5 +127,29 @@ export async function predictFoodTruck(truck_id: string, arrive_at: string) {
 // Noise
 export async function getNoiseZones(city: string): Promise<{ zones: NoiseZone[]; count: number }> {
   const { data } = await api.get("/api/noise/zones", { params: { city } });
+  return data;
+}
+
+// Urban Pulse Score
+export async function getPulseScore(city: string): Promise<PulseScore> {
+  const { data } = await api.get("/api/pulse/score", { params: { city } });
+  return data;
+}
+
+// AI City Concierge
+export async function askConcierge(question: string, city: string): Promise<ConciergeResponse> {
+  const { data } = await api.post("/api/concierge/ask", { question, city });
+  return data;
+}
+
+// City Comparison
+export async function getCityComparison(): Promise<CompareData> {
+  const { data } = await api.get("/api/dashboard/compare");
+  return data;
+}
+
+// Surge Alerts
+export async function getSurgeAlerts(city: string): Promise<SurgeData> {
+  const { data } = await api.get("/api/surge/alerts", { params: { city } });
   return data;
 }

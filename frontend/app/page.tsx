@@ -4,10 +4,11 @@ import Link from "next/link";
 import Header from "@/components/Header";
 import StatCard from "@/components/StatCard";
 import Toast from "@/components/Toast";
-import { getOverview } from "@/lib/api";
+import SurgeWidget from "@/components/SurgeWidget";
+import { getOverview, getPulseScore } from "@/lib/api";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
-import type { DashboardOverview } from "@/lib/types";
+import type { DashboardOverview, PulseScore } from "@/lib/types";
 
 const RUSH_COLOR: Record<string, string> = {
   "Peak Rush Hour": "#ef4444",
@@ -18,6 +19,7 @@ const RUSH_COLOR: Record<string, string> = {
 export default function DashboardPage() {
   const { city, setCity } = useDetectedCity();
   const [overview, setOverview] = useState<DashboardOverview | null>(null);
+  const [pulse, setPulse] = useState<PulseScore | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
 
@@ -28,6 +30,7 @@ export default function DashboardPage() {
       .then((data) => { if (!cancelled) setOverview(data); })
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
+    getPulseScore(city).then((d) => { if (!cancelled) setPulse(d); }).catch(() => {});
     return () => { cancelled = true; };
   }, [city]);
 
@@ -36,6 +39,7 @@ export default function DashboardPage() {
 
   useWebSocket(city, () => {
     getOverview(cityRef.current).then(setOverview).catch(() => {});
+    getPulseScore(cityRef.current).then(setPulse).catch(() => {});
     setToast("Live update received");
   });
 
@@ -113,6 +117,45 @@ export default function DashboardPage() {
               />
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Pulse + Surge row */}
+      <section className="px-4 pb-6">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Pulse mini-card */}
+          <Link href={`/pulse?city=${encodeURIComponent(city)}`} className="card p-4 flex items-center gap-4 hover:border-blue-500/40 transition-all group">
+            <div className="relative shrink-0" style={{ width: 64, height: 64 }}>
+              <svg width="64" height="64" viewBox="0 0 64 64">
+                <circle cx="32" cy="32" r="26" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="6" />
+                <circle
+                  cx="32" cy="32" r="26"
+                  fill="none"
+                  stroke={pulse?.color ?? "#3b82f6"}
+                  strokeWidth="6"
+                  strokeLinecap="round"
+                  strokeDasharray={`${((pulse?.pulse_score ?? 0) / 100) * 2 * Math.PI * 26} ${2 * Math.PI * 26}`}
+                  transform="rotate(-90 32 32)"
+                  style={{ filter: `drop-shadow(0 0 4px ${pulse?.color ?? "#3b82f6"})` }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex items-center justify-center">
+                <span className="text-sm font-bold" style={{ color: pulse?.color ?? "#3b82f6" }}>
+                  {pulse?.pulse_score ?? "—"}
+                </span>
+              </div>
+            </div>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>City Pulse Score</p>
+              <p className="text-xs mt-0.5" style={{ color: pulse?.color ?? "var(--muted)" }}>
+                {pulse?.label ?? "Loading…"}
+              </p>
+              <p className="text-xs mt-1" style={{ color: "var(--muted)" }}>Composite livability index →</p>
+            </div>
+          </Link>
+
+          {/* Surge widget */}
+          <SurgeWidget city={city} />
         </div>
       </section>
 
@@ -301,6 +344,89 @@ export default function DashboardPage() {
               </div>
               <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#ec4899" }}>
                 Explore <span>→</span>
+              </div>
+            </Link>
+
+          </div>
+
+          {/* ── Unique Features Row ── */}
+          <h2 className="text-sm font-semibold mt-8 mb-4" style={{ color: "var(--muted)" }}>UNIQUE FEATURES</h2>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+
+            {/* City Pulse */}
+            <Link href={`/pulse?city=${encodeURIComponent(city)}`}
+              className="card p-5 flex flex-col gap-3 group cursor-pointer" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: "rgba(59,130,246,0.1)", color: "#3b82f6" }}>◎</div>
+              <div className="flex items-center justify-center">
+                <div className="relative" style={{ width: 56, height: 56 }}>
+                  <svg width="56" height="56" viewBox="0 0 56 56">
+                    <circle cx="28" cy="28" r="22" fill="none" stroke="rgba(255,255,255,0.06)" strokeWidth="5" />
+                    <circle cx="28" cy="28" r="22" fill="none" stroke={pulse?.color ?? "#3b82f6"}
+                      strokeWidth="5" strokeLinecap="round"
+                      strokeDasharray={`${((pulse?.pulse_score ?? 72) / 100) * 2 * Math.PI * 22} ${2 * Math.PI * 22}`}
+                      transform="rotate(-90 28 28)"
+                      style={{ filter: `drop-shadow(0 0 4px ${pulse?.color ?? "#3b82f6"})` }} />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-xs font-bold" style={{ color: pulse?.color ?? "#3b82f6" }}>
+                      {pulse?.pulse_score ?? "—"}
+                    </span>
+                  </div>
+                </div>
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>City Pulse Score</p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Composite livability index across all 8 urban domains in real-time</p>
+              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#3b82f6" }}>
+                View Score <span>→</span>
+              </div>
+            </Link>
+
+            {/* AI Concierge */}
+            <Link href={`/concierge?city=${encodeURIComponent(city)}`}
+              className="card p-5 flex flex-col gap-3 group cursor-pointer" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: "rgba(139,92,246,0.1)", color: "#a78bfa" }}>💬</div>
+              <div className="flex flex-col gap-1.5">
+                {["Where should I park?", "Is the air safe for a run?", "Best transit route?"].map((q, i) => (
+                  <div key={i} className="px-2 py-1 rounded-lg text-xs" style={{ background: "var(--card2)", color: "var(--muted)" }}>
+                    {q}
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>AI City Concierge</p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Ask anything about city conditions — Claude answers with live data</p>
+              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#a78bfa" }}>
+                Ask Now <span>→</span>
+              </div>
+            </Link>
+
+            {/* City Compare */}
+            <Link href="/compare"
+              className="card p-5 flex flex-col gap-3 group cursor-pointer" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: "rgba(34,197,94,0.1)", color: "#22c55e" }}>⚖</div>
+              <div className="flex items-center justify-around py-1">
+                {["🌉", "🗽", "🎸"].map((flag, i) => (
+                  <div key={i} className="flex flex-col items-center gap-1">
+                    <span className="text-xl">{flag}</span>
+                    <div className="w-8 rounded-sm" style={{
+                      height: [36, 28, 44][i],
+                      background: ["rgba(59,130,246,0.5)", "rgba(245,158,11,0.5)", "rgba(34,197,94,0.5)"][i],
+                    }} />
+                  </div>
+                ))}
+              </div>
+              <div>
+                <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Live City Compare</p>
+                <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>SF vs NY vs Austin — who's winning right now across all metrics?</p>
+              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#22c55e" }}>
+                Compare <span>→</span>
               </div>
             </Link>
 

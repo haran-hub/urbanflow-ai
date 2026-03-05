@@ -259,6 +259,106 @@ async def ai_plan(request: UrbanPlanRequest, db: AsyncSession = Depends(get_db))
     return {"plan": plan, "generated_at": datetime.utcnow().isoformat() + "Z"}
 
 
+@router.get("/compare")
+async def compare_cities(db: AsyncSession = Depends(get_db)):
+    """Side-by-side comparison of all 3 cities across key metrics."""
+    CITIES = ["San Francisco", "New York", "Austin"]
+    result = {}
+
+    for city in CITIES:
+        # Parking
+        zones = (await db.execute(select(ParkingZone).where(ParkingZone.city == city))).scalars().all()
+        total_spots = sum(z.total_spots for z in zones)
+        avail_spots = 0
+        for z in zones:
+            s = await _latest_snap(db, ParkingSnapshot, "zone_id", z.id)
+            avail_spots += s.available_spots if s else z.total_spots
+        park_occ = round((1 - avail_spots / total_spots) * 100, 1) if total_spots else 0
+
+        # EV
+        stations = (await db.execute(select(EVStation).where(EVStation.city == city))).scalars().all()
+        ev_avail = 0
+        ev_wait = 0
+        for st in stations:
+            s = await _latest_snap(db, EVSnapshot, "station_id", st.id)
+            if s:
+                ev_avail += s.available_ports
+                ev_wait += s.avg_wait_minutes
+        ev_avg_wait = round(ev_wait / len(stations), 1) if stations else 0
+
+        # Transit
+        routes = (await db.execute(select(TransitRoute).where(TransitRoute.city == city))).scalars().all()
+        crowd_total = 0
+        delayed = 0
+        for r in routes:
+            s = await _latest_snap(db, TransitSnapshot, "route_id", r.id)
+            if s:
+                crowd_total += s.occupancy_level
+                if s.delay_minutes > 3:
+                    delayed += 1
+        avg_crowd = round(crowd_total / len(routes)) if routes else 0
+
+        # Air
+        air_sts = (await db.execute(select(AirStation).where(AirStation.city == city))).scalars().all()
+        aqi_total = 0
+        air_cat = "N/A"
+        for a in air_sts:
+            s = await _latest_snap(db, AirSnapshot, "station_id", a.id)
+            if s:
+                aqi_total += s.aqi
+                air_cat = s.category
+        avg_aqi = round(aqi_total / len(air_sts)) if air_sts else 0
+
+        # Bikes
+        bss = (await db.execute(select(BikeStation).where(BikeStation.city == city))).scalars().all()
+        bikes_avail = 0
+        for bs in bss:
+            s = await _latest_snap(db, BikeSnapshot, "station_id", bs.id)
+            if s:
+                bikes_avail += s.available_bikes + s.available_ebikes
+
+        # Vibe
+        nzs = (await db.execute(select(NoiseZone).where(NoiseZone.city == city))).scalars().all()
+        vibe_total = 0
+        vibe_count = 0
+        for nz in nzs:
+            s = await _latest_snap(db, NoiseSnapshot, "zone_id", nz.id)
+            if s:
+                vibe_total += s.vibe_score
+                vibe_count += 1
+        avg_vibe = round(vibe_total / vibe_count) if vibe_count else 0
+
+        result[city] = {
+            "parking_occupancy_pct": park_occ,
+            "parking_available": avail_spots,
+            "ev_available_ports": ev_avail,
+            "ev_avg_wait_min": ev_avg_wait,
+            "transit_crowd_pct": avg_crowd,
+            "transit_delayed": delayed,
+            "air_aqi": avg_aqi,
+            "air_category": air_cat,
+            "bikes_available": bikes_avail,
+            "vibe_score": avg_vibe,
+        }
+
+    # Determine winners per metric (lower is better for occupancy/wait/crowd/aqi; higher is better for avail/vibe)
+    metrics_lower_better = ["parking_occupancy_pct", "ev_avg_wait_min", "transit_crowd_pct", "transit_delayed", "air_aqi"]
+    metrics_higher_better = ["ev_available_ports", "parking_available", "bikes_available", "vibe_score"]
+    winners: dict[str, str] = {}
+    for m in metrics_lower_better:
+        best_city = min(CITIES, key=lambda c: result[c][m])
+        winners[m] = best_city
+    for m in metrics_higher_better:
+        best_city = max(CITIES, key=lambda c: result[c][m])
+        winners[m] = best_city
+
+    return {
+        "timestamp": datetime.utcnow().isoformat() + "Z",
+        "cities": result,
+        "winners": winners,
+    }
+
+
 @router.get("/best-time")
 async def best_time(
     entity_type: str = Query(..., description="parking / ev / transit / service"),

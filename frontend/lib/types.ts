@@ -137,6 +137,54 @@ export interface NoiseZone {
   crowd_density: number; vibe_label: string; last_updated: string | null;
 }
 
+export interface PulseScore {
+  city: string;
+  timestamp: string;
+  pulse_score: number;
+  label: string;
+  color: string;
+  breakdown: Record<string, { score: number; [key: string]: unknown }>;
+  weights: Record<string, number>;
+}
+
+export interface ConciergeResponse {
+  answer: string;
+  city: string;
+  timestamp: string;
+}
+
+export interface CompareData {
+  timestamp: string;
+  cities: Record<string, {
+    parking_occupancy_pct: number;
+    parking_available: number;
+    ev_available_ports: number;
+    ev_avg_wait_min: number;
+    transit_crowd_pct: number;
+    transit_delayed: number;
+    air_aqi: number;
+    air_category: string;
+    bikes_available: number;
+    vibe_score: number;
+  }>;
+  winners: Record<string, string>;
+}
+
+export interface SurgeAlert {
+  domain: string;
+  severity: "low" | "medium" | "high";
+  message: string;
+  tip: string;
+  predicted_peak_in_mins: number;
+}
+
+export interface SurgeData {
+  city: string;
+  timestamp: string;
+  alerts: SurgeAlert[];
+  ai_generated: boolean;
+}
+
 export interface Prediction {
   predicted_value: number;
   confidence: number;

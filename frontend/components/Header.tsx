@@ -16,6 +16,9 @@ const NAV = [
   { href: "/food-trucks",label: "Food Trucks",  icon: "🚚" },
   { href: "/noise",      label: "Noise & Vibe", icon: "🎵" },
   { href: "/plan",       label: "AI Plan",      icon: "✦" },
+  { href: "/pulse",      label: "City Pulse",   icon: "◎" },
+  { href: "/concierge",  label: "AI Concierge", icon: "💬" },
+  { href: "/compare",    label: "City Compare", icon: "⚖" },
 ];
 
 interface HeaderProps {

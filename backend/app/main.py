@@ -9,7 +9,7 @@ from app.config import settings
 from app.database import create_tables, AsyncSessionLocal
 from app.models import ParkingZone, EVStation, TransitRoute, LocalService, AirStation, BikeStation, FoodTruck, NoiseZone
 from app.scheduler import start_scheduler, stop_scheduler
-from app.routes import parking, ev, transit, services, dashboard, ws, air, bikes, foodtrucks, noise
+from app.routes import parking, ev, transit, services, dashboard, ws, air, bikes, foodtrucks, noise, pulse, concierge, surge
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -81,6 +81,9 @@ app.include_router(air.router)
 app.include_router(bikes.router)
 app.include_router(foodtrucks.router)
 app.include_router(noise.router)
+app.include_router(pulse.router)
+app.include_router(concierge.router)
+app.include_router(surge.router)
 
 
 @app.get("/")
