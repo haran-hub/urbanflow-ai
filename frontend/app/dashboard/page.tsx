@@ -133,12 +133,7 @@ function DashboardContent() {
               />
             </div>
           )}
-        </div>
-      </section>
 
-      {/* Weather Impact Banner */}
-      <section className="px-4 pb-2">
-        <div className="max-w-6xl mx-auto">
           <WeatherMetricsCard city={city} context="vibe" />
         </div>
       </section>
