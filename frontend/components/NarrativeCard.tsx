@@ -10,6 +10,21 @@ const MOOD_ICONS: Record<string, string> = {
   Stressed: "⚡",
 };
 
+const CITY_INTRO: Record<string, { tagline: string; tags: string[] }> = {
+  "San Francisco": {
+    tagline: "Tech capital on the bay — fog, hills, and relentless innovation meeting Pacific culture.",
+    tags: ["Golden Gate", "Dense transit", "Mild year-round", "Tech hub", "Bay views"],
+  },
+  "New York": {
+    tagline: "8 million stories, one city that never sleeps — the world's most electric urban pulse.",
+    tags: ["Times Square", "24/7 subway", "World finance", "5 boroughs", "Global culture"],
+  },
+  "Austin": {
+    tagline: "Live music capital of the world — where weird is a virtue and tech meets Texas soul.",
+    tags: ["6th Street", "Live music", "Tech boom", "Year-round sun", "BBQ & tacos"],
+  },
+};
+
 function detectIcon(text: string): string {
   const t = text.toLowerCase();
   if (t.includes("aqi") || t.includes("pm2.5") || t.includes("monitor") || t.includes("pollen") || t.includes("uv")) return "🌬";
@@ -22,9 +37,7 @@ function detectIcon(text: string): string {
 }
 
 function parseBullets(text: string): Array<{ icon: string; line: string }> {
-  // Strip wrapping quotes
   const clean = text.replace(/^[""\u201C\u201D]|[""\u201C\u201D]$/g, "").trim();
-  // Try splitting on bullet separator first
   const byBullet = clean.split(/\s*•\s*/).filter(s => s.trim().length > 8);
   const parts = byBullet.length >= 2
     ? byBullet
@@ -51,14 +64,22 @@ export default function NarrativeCard({ city }: Props) {
     return () => { cancelled = true; };
   }, [city]);
 
+  const intro = CITY_INTRO[city];
+
   if (loading) {
     return (
       <div className="card p-4 h-full animate-pulse flex flex-col gap-3" style={{ background: "var(--card)" }}>
         <div className="h-3 w-24 rounded" style={{ background: "rgba(255,255,255,0.06)" }} />
-        {[...Array(4)].map((_, i) => (
+        <div className="h-3 w-full rounded" style={{ background: "rgba(255,255,255,0.04)" }} />
+        <div className="h-3 w-4/5 rounded" style={{ background: "rgba(255,255,255,0.04)" }} />
+        <div className="flex gap-1.5 mt-1">
+          {[...Array(4)].map((_, i) => <div key={i} className="h-5 w-16 rounded-full" style={{ background: "rgba(255,255,255,0.05)" }} />)}
+        </div>
+        <div className="h-px my-1" style={{ background: "rgba(255,255,255,0.06)" }} />
+        {[...Array(3)].map((_, i) => (
           <div key={i} className="flex items-center gap-2">
             <div className="w-5 h-5 rounded" style={{ background: "rgba(255,255,255,0.05)" }} />
-            <div className="h-3 rounded flex-1" style={{ background: "rgba(255,255,255,0.04)", width: `${70 + i * 5}%` }} />
+            <div className="h-3 rounded flex-1" style={{ background: "rgba(255,255,255,0.04)" }} />
           </div>
         ))}
       </div>
@@ -72,25 +93,51 @@ export default function NarrativeCard({ city }: Props) {
 
   return (
     <div
-      className="card p-4 h-full flex flex-col"
+      className="card p-4 h-full flex flex-col justify-between"
       style={{ borderColor: `${moodColor}30`, background: `linear-gradient(135deg, ${moodColor}06, var(--card))` }}
     >
-      {/* Header */}
-      <div className="flex items-center justify-between mb-3">
-        <div className="flex items-center gap-2">
-          <span style={{ fontSize: 16 }}>{MOOD_ICONS[data.mood] ?? "🏙"}</span>
-          <span className="text-xs font-semibold" style={{ color: moodColor }}>
-            City Right Now · {data.mood}
-          </span>
+      {/* Top: header + city intro */}
+      <div>
+        {/* Header */}
+        <div className="flex items-center justify-between mb-3">
+          <div className="flex items-center gap-2">
+            <span style={{ fontSize: 16 }}>{MOOD_ICONS[data.mood] ?? "🏙"}</span>
+            <span className="text-xs font-semibold" style={{ color: moodColor }}>
+              City Right Now · {data.mood}
+            </span>
+          </div>
+          {data.ai_generated && (
+            <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.12)", color: "#a78bfa" }}>
+              ✦ AI
+            </span>
+          )}
         </div>
-        {data.ai_generated && (
-          <span className="text-xs px-2 py-0.5 rounded-full" style={{ background: "rgba(139,92,246,0.12)", color: "#a78bfa" }}>
-            ✦ AI
-          </span>
+
+        {/* City introduction */}
+        {intro && (
+          <div className="mb-3">
+            <p className="text-xs leading-relaxed mb-2" style={{ color: "var(--text)", opacity: 0.75 }}>
+              {intro.tagline}
+            </p>
+            <div className="flex flex-wrap gap-1.5">
+              {intro.tags.map(tag => (
+                <span
+                  key={tag}
+                  className="text-[10px] px-2 py-0.5 rounded-full font-medium"
+                  style={{ background: `${moodColor}14`, color: moodColor, border: `1px solid ${moodColor}28` }}
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+          </div>
         )}
+
+        {/* Divider */}
+        <div className="mb-3" style={{ height: 1, background: `${moodColor}20` }} />
       </div>
 
-      {/* Bullet points */}
+      {/* Middle: live bullet points */}
       <ul className="flex flex-col gap-2.5 flex-1">
         {bullets.map((b, i) => (
           <li key={i} className="flex items-start gap-2.5">
@@ -102,7 +149,7 @@ export default function NarrativeCard({ city }: Props) {
         ))}
       </ul>
 
-      {/* Mood footer */}
+      {/* Footer */}
       <div className="mt-3 pt-3 flex items-center gap-1.5" style={{ borderTop: `1px solid ${moodColor}20` }}>
         <span className="w-1.5 h-1.5 rounded-full" style={{ background: moodColor }} />
         <span className="text-[10px] font-medium" style={{ color: moodColor }}>{data.mood} conditions</span>
