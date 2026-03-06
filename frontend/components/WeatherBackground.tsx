@@ -109,8 +109,8 @@ export default function WeatherBackground({
             top: 0,
             left: "50%",
             transform: "translateX(-50%)",
-            width: "100%",
-            height: "500px",
+            width: "80%",
+            height: "280px",
             background: `radial-gradient(ellipse at 50% 0%, ${glowColor} 0%, transparent 70%)`,
           }}
         />
@@ -125,7 +125,7 @@ export default function WeatherBackground({
             right: "10%",
             width: "500px",
             height: "500px",
-            background: `radial-gradient(circle, rgba(251,191,36,0.10) 0%, transparent 70%)`,
+            background: `radial-gradient(circle, rgba(251,191,36,0.04) 0%, transparent 70%)`,
             animation: "wxSunPulse 6s ease-in-out infinite alternate",
           }}
         />

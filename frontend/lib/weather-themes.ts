@@ -50,7 +50,7 @@ const THEMES: Record<WeatherCondition, WeatherTheme> = {
     gradientBar: "linear-gradient(90deg, #f59e0b, #f97316, #ef4444)",
     particleColor: "#fde68a",
     particleOpacity: 0.12,
-    glowColor: "rgba(251,191,36,0.18)",
+    glowColor: "rgba(251,191,36,0.07)",
     label: "Sunny",
   },
   "clear-night": {
