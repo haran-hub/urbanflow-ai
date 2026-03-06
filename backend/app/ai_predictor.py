@@ -7,11 +7,13 @@ All functions degrade gracefully when no API key is present.
 import json
 import logging
 import re
+import time
 from datetime import datetime
 
 import anthropic
 
 from app.config import settings
+from app.cache import ai_cache
 from app.data_engine import (
     generate_parking_occupancy, generate_ev_wait,
     generate_transit_crowd, generate_service_wait,
@@ -43,7 +45,7 @@ async def _call_claude(prompt: str, system: str) -> str:
         raise RuntimeError("No API key")
     msg = await client.messages.create(
         model=settings.ai_model,
-        max_tokens=600,
+        max_tokens=300,
         system=system,
         messages=[{"role": "user", "content": prompt}],
     )
@@ -62,6 +64,14 @@ async def predict_availability(
     Predicts occupancy / wait at target_time.
     Returns: {predicted_value, confidence, explanation}
     """
+    # Cache: same entity + same 10-min time bucket = same prediction
+    entity_id = entity.get("id", "unknown")
+    bucket = int(target_time.timestamp() // 600)
+    cache_key = f"predict:{entity_type}:{entity_id}:{bucket}"
+    cached = ai_cache.get(cache_key)
+    if cached:
+        return cached
+
     system = (
         "You are an urban mobility AI analyst. "
         "Analyze historical snapshot data and predict resource availability. "
@@ -84,14 +94,15 @@ async def predict_availability(
     try:
         raw = await _call_claude(prompt, system)
         result = _parse_json(raw)
-        return {
+        out = {
             "predicted_value": float(result.get("predicted_value", 0)),
             "confidence": float(result.get("confidence", 0.5)),
             "explanation": str(result.get("explanation", "")),
         }
+        ai_cache.set(cache_key, out, ttl=600)
+        return out
     except Exception as e:
         logger.warning(f"predict_availability fallback: {e}")
-        # Fallback: use data engine for target_time
         return _fallback_predict(entity_type, entity, target_time)
 
 
@@ -125,6 +136,14 @@ async def recommend_best_option(
     if not options:
         return {"recommended_id": None, "reason": "No options available.", "alternatives": [], "estimated_wait": 0}
 
+    # Cache: same entity_type + city + 5-min bucket
+    city = user_request.get("city", "unknown")
+    bucket = int(time.time() // 300)
+    cache_key = f"recommend:{entity_type}:{city}:{bucket}"
+    cached = ai_cache.get(cache_key)
+    if cached:
+        return cached
+
     system = (
         "You are an urban mobility AI assistant. "
         "Given a list of options with current status, pick the best one for the user. "
@@ -141,12 +160,14 @@ async def recommend_best_option(
     try:
         raw = await _call_claude(prompt, system)
         result = _parse_json(raw)
-        return {
+        out = {
             "recommended_id": result.get("recommended_id"),
             "reason": result.get("reason", ""),
             "alternatives": result.get("alternatives", []),
             "estimated_wait": int(result.get("estimated_wait", 0)),
         }
+        ai_cache.set(cache_key, out, ttl=300)
+        return out
     except Exception as e:
         logger.warning(f"recommend_best_option fallback: {e}")
         best = options[0]
@@ -214,6 +235,13 @@ async def find_best_time(entity_type: str, entity: dict) -> dict:
     Returns best and worst time windows for visiting an entity.
     Returns: {best_windows: [{day, time_range, reason}], worst_windows: [...], general_tip}
     """
+    # Best-time answers barely change — cache 1 hour per entity
+    entity_id = entity.get("id", "unknown")
+    cache_key = f"best_time:{entity_type}:{entity_id}"
+    cached = ai_cache.get(cache_key)
+    if cached:
+        return cached
+
     system = (
         "You are an urban efficiency AI. "
         "Based on the entity type and characteristics, recommend best and worst times to visit. "
@@ -230,11 +258,13 @@ async def find_best_time(entity_type: str, entity: dict) -> dict:
     try:
         raw = await _call_claude(prompt, system)
         result = _parse_json(raw)
-        return {
+        out = {
             "best_windows": result.get("best_windows", []),
             "worst_windows": result.get("worst_windows", []),
             "general_tip": result.get("general_tip", ""),
         }
+        ai_cache.set(cache_key, out, ttl=3600)
+        return out
     except Exception as e:
         logger.warning(f"find_best_time fallback: {e}")
         return _fallback_best_time(entity_type)

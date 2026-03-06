@@ -5,6 +5,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from sqlalchemy import func, select
 
 from app.config import settings
@@ -15,6 +16,29 @@ from app.routes import parking, ev, transit, services, dashboard, ws, air, bikes
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
+
+# ── AI rate limiting (per IP, in-memory) ──────────────────────────────────────
+# Paths that trigger Claude API calls
+_AI_PATHS = (
+    "/api/concierge",
+    "/api/parking/predict", "/api/parking/recommend",
+    "/api/ev/predict", "/api/ev/recommend",
+    "/api/transit/predict",
+    "/api/services/predict",
+    "/api/bikes/recommend",
+    "/api/foodtrucks/predict",
+    "/api/briefing",
+    "/api/pulse",
+    "/api/narrative",
+    "/api/goout",
+    "/api/tripcost",
+    "/api/moment",
+    "/api/plan",
+    "/api/neighborhoods/score",
+)
+_AI_LIMIT = 20          # max AI calls per IP per window
+_AI_WINDOW = 60         # seconds
+_ai_rate_store: dict[str, list[float]] = {}
 
 # ── On-demand city refresh (one refresh per city per N seconds) ────────────────
 _REFRESH_COOLDOWN = 5          # seconds between refreshes for the same city
@@ -105,6 +129,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.middleware("http")
+async def ai_rate_limit(request: Request, call_next):
+    """Block IPs that spam AI endpoints — protects Anthropic API quota."""
+    if any(request.url.path.startswith(p) for p in _AI_PATHS):
+        ip = (request.client.host if request.client else None) or "unknown"
+        now = _time.monotonic()
+        calls = [t for t in _ai_rate_store.get(ip, []) if t > now - _AI_WINDOW]
+        if len(calls) >= _AI_LIMIT:
+            return JSONResponse(
+                status_code=429,
+                content={"detail": f"Too many AI requests. Max {_AI_LIMIT} per {_AI_WINDOW}s. Please wait."},
+            )
+        calls.append(now)
+        _ai_rate_store[ip] = calls
+    return await call_next(request)
 
 
 @app.middleware("http")

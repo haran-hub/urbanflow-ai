@@ -14,10 +14,13 @@ from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, desc
 
+import time as _time
+
 import anthropic
 
 from app.config import settings
 from app.database import get_db
+from app.cache import ctx_cache
 from app.models import (
     ParkingZone, ParkingSnapshot,
     EVStation, EVSnapshot,
@@ -60,7 +63,14 @@ async def _build_rich_context(db: AsyncSession, city: str) -> str:
     """
     Build entity-level city data: actual names, addresses, real numbers.
     Claude uses this to give specific, varied answers.
+    Cached 2 minutes per city to avoid redundant DB queries + token waste.
     """
+    bucket = int(_time.time() // 120)  # 2-minute buckets
+    cache_key = f"ctx:{city}:{bucket}"
+    cached = ctx_cache.get(cache_key)
+    if cached:
+        return cached
+
     parts: list[str] = [
         f"=== LIVE {city.upper()} DATA — {datetime.utcnow().strftime('%A %H:%M UTC')} ===",
         "",
@@ -190,7 +200,9 @@ async def _build_rich_context(db: AsyncSession, city: str) -> str:
     parts.append("NEIGHBORHOOD VIBE (liveliest first):")
     parts += [r for _, r in rows[:6]]
 
-    return "\n".join(parts)
+    result = "\n".join(parts)
+    ctx_cache.set(cache_key, result, ttl=120)
+    return result
 
 
 class ChatMessage(BaseModel):
