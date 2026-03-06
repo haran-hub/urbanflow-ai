@@ -8,12 +8,14 @@ import Toast from "@/components/Toast";
 import SurgeWidget from "@/components/SurgeWidget";
 import NarrativeCard from "@/components/NarrativeCard";
 import ShareCard from "@/components/ShareCard";
-import { getOverview, getPulseScore } from "@/lib/api";
+import { getOverview, getPulseScore, getMiniTrends } from "@/lib/api";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { DashboardOverview, PulseScore } from "@/lib/types";
 import WeatherMetricsCard from "@/components/WeatherMetricsCard";
+import LiveTicker from "@/components/LiveTicker";
+import AnomalyAlert from "@/components/AnomalyAlert";
 
 const RUSH_COLOR: Record<string, string> = {
   "Peak Rush Hour": "#ef4444",
@@ -28,6 +30,9 @@ function DashboardContent() {
   const [pulse, setPulse] = useState<PulseScore | null>(null);
   const [loading, setLoading] = useState(true);
   const [toast, setToast] = useState<string | null>(null);
+  const [sparklines, setSparklines] = useState<{
+    parking_occ: number[]; ev_wait: number[]; transit_crowd: number[]; aqi: number[];
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -37,6 +42,7 @@ function DashboardContent() {
       .catch(() => {})
       .finally(() => { if (!cancelled) setLoading(false); });
     getPulseScore(city).then((d) => { if (!cancelled) setPulse(d); }).catch(() => {});
+    getMiniTrends(city).then((d) => { if (!cancelled) setSparklines(d); }).catch(() => {});
     return () => { cancelled = true; };
   }, [city]);
 
@@ -59,6 +65,7 @@ function DashboardContent() {
   return (
     <main className="min-h-screen pt-14 md:pt-0 md:pl-[220px]" style={{ background: "var(--bg)" }}>
       <Header city={city} onCityChange={setCity} liveStatus="Live · refreshes on every visit" />
+      <LiveTicker city={city} />
 
       {/* Hero */}
       <section className="pt-12 pb-8 px-4">
@@ -88,6 +95,8 @@ function DashboardContent() {
             </div>
           </div>
 
+          <AnomalyAlert city={city} />
+
           {/* Stats Grid */}
           {loading ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
@@ -104,6 +113,7 @@ function DashboardContent() {
                 sub={o ? `${o.parking.zones_count} zones · ${o.parking.occupancy_pct.toFixed(0)}% full` : "—"}
                 accent="blue"
                 trend={o && o.parking.occupancy_pct < 70 ? "good" : "bad"}
+                sparkline={sparklines?.parking_occ}
               />
               <StatCard
                 icon="⚡"
@@ -112,6 +122,7 @@ function DashboardContent() {
                 sub={o ? `Avg wait: ${o.ev_charging.avg_wait_minutes} min · ${o.ev_charging.stations_count} stations` : "—"}
                 accent="yellow"
                 trend={o && o.ev_charging.available_ports > 0 ? "good" : "bad"}
+                sparkline={sparklines?.ev_wait}
               />
               <StatCard
                 icon="🚇"
@@ -120,6 +131,7 @@ function DashboardContent() {
                 sub={o ? `${o.transit.crowd_label} · ${o.transit.delayed_routes} routes delayed` : "—"}
                 accent={o && o.transit.avg_crowd_level > 70 ? "red" : "green"}
                 trend={o && o.transit.avg_crowd_level < 60 ? "good" : "bad"}
+                sparkline={sparklines?.transit_crowd}
               />
               <StatCard
                 icon="🏛"

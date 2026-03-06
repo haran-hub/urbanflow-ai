@@ -196,6 +196,19 @@ export async function getDelta(city: string): Promise<DeltaResponse> {
   return data;
 }
 
+// Mini sparkline trends
+export async function getMiniTrends(city: string): Promise<{
+  city: string;
+  parking_occ: number[];
+  ev_wait: number[];
+  transit_crowd: number[];
+  aqi: number[];
+  timestamp: string;
+}> {
+  const { data } = await api.get("/api/trends/mini", { params: { city } });
+  return data;
+}
+
 // Trip Cost Estimator
 export async function estimateTripCost(payload: {
   city: string;

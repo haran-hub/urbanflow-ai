@@ -11,7 +11,7 @@ from app.config import settings
 from app.database import create_tables, AsyncSessionLocal
 from app.models import ParkingZone, EVStation, TransitRoute, LocalService, AirStation, BikeStation, FoodTruck, NoiseZone
 from app.scheduler import start_scheduler, stop_scheduler
-from app.routes import parking, ev, transit, services, dashboard, ws, air, bikes, foodtrucks, noise, pulse, concierge, surge, briefing, narrative, moment, goout, neighborhoods, delta, tripcost
+from app.routes import parking, ev, transit, services, dashboard, ws, air, bikes, foodtrucks, noise, pulse, concierge, surge, briefing, narrative, moment, goout, neighborhoods, delta, tripcost, trends
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -130,6 +130,7 @@ async def refresh_on_city_request(request: Request, call_next):
         and not request.url.path.startswith("/api/neighborhoods")
         and not request.url.path.startswith("/api/delta")
         and not request.url.path.startswith("/api/tripcost")
+        and not request.url.path.startswith("/api/trends")
     ):
         await _on_demand_refresh(city)
 
@@ -156,6 +157,7 @@ app.include_router(goout.router)
 app.include_router(neighborhoods.router)
 app.include_router(delta.router)
 app.include_router(tripcost.router)
+app.include_router(trends.router)
 
 
 @app.get("/")

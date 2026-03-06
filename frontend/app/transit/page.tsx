@@ -10,6 +10,7 @@ import type { TransitRoute } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import { nowInCityIso, formatCityTime } from "@/lib/city-time";
+import HourlyForecast from "@/components/HourlyForecast";
 
 const TYPE_ICONS: Record<string, string> = { bus: "🚌", subway: "🚇", tram: "🚋", ferry: "⛴" };
 const TYPE_COLOR: Record<string, string> = { bus: "#f59e0b", subway: "#3b82f6", tram: "#22c55e", ferry: "#0ea5e9" };
@@ -86,6 +87,8 @@ function TransitContent() {
             </button>
           ))}
         </div>
+
+        <HourlyForecast domain="transit" city={city} cityTz="" />
 
         {loading ? (
           <div className="space-y-4">

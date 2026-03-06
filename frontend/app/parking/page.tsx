@@ -12,6 +12,7 @@ import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 import { nowInCityIso, formatCityTime } from "@/lib/city-time";
+import HourlyForecast from "@/components/HourlyForecast";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -161,6 +162,8 @@ function ParkingContent() {
             </div>
           </div>
         )}
+
+        <HourlyForecast domain="parking" city={city} cityTz="" />
 
         {/* Zones */}
         {loading ? (

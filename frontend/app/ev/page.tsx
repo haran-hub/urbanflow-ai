@@ -11,6 +11,7 @@ import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 import { nowInCityIso } from "@/lib/city-time";
+import HourlyForecast from "@/components/HourlyForecast";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -157,6 +158,8 @@ function EVContent() {
             </div>
           </div>
         )}
+
+        <HourlyForecast domain="ev" city={city} cityTz="" />
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
