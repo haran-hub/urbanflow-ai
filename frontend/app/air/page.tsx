@@ -10,6 +10,7 @@ import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 import { nowInCityIso, formatCityTime } from "@/lib/city-time";
+import WeatherMetricsCard from "@/components/WeatherMetricsCard";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -115,6 +116,8 @@ function AirContent() {
             </button>
           </div>
         </div>
+
+        <WeatherMetricsCard city={city} context="air" />
 
         {showFuturePanel && (
           <div className="p-4 rounded-xl mb-6 flex flex-col sm:flex-row sm:items-center gap-3 animate-fade-in"

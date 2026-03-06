@@ -10,6 +10,7 @@ import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 import { nowInCityIso, formatCityTime } from "@/lib/city-time";
+import WeatherMetricsCard from "@/components/WeatherMetricsCard";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -141,6 +142,8 @@ function FoodTrucksContent() {
             </button>
           ))}
         </div>
+
+        <WeatherMetricsCard city={city} context="food" />
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -17,6 +17,10 @@ export interface WeatherData {
   wind_kph: number;
   description: string;
   icon: string;
+  feels_like_c?: number;
+  humidity?: number;
+  precipitation_mm?: number;
+  wind_gusts_kph?: number;
 }
 
 export interface WeatherTheme {

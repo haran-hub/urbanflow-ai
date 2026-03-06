@@ -57,7 +57,7 @@ export function useWeatherTheme(city: string): {
     const url =
       `https://api.open-meteo.com/v1/forecast` +
       `?latitude=${coords.lat}&longitude=${coords.lon}` +
-      `&current=temperature_2m,weather_code,wind_speed_10m,is_day` +
+      `&current=temperature_2m,weather_code,wind_speed_10m,is_day,apparent_temperature,relative_humidity_2m,precipitation,wind_gusts_10m` +
       `&timezone=${coords.tz}&forecast_days=1`;
 
     fetch(url)
@@ -76,6 +76,10 @@ export function useWeatherTheme(city: string): {
           wind_kph,
           description: getWeatherDescription(code, isDay),
           icon: getWeatherIcon(condition),
+          feels_like_c: c.apparent_temperature ?? undefined,
+          humidity: c.relative_humidity_2m ?? undefined,
+          precipitation_mm: c.precipitation ?? undefined,
+          wind_gusts_kph: c.wind_gusts_10m ?? undefined,
         };
 
         _cache[city] = { data, at: Date.now() };

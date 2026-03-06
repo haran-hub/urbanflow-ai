@@ -9,6 +9,7 @@ import type { BikeStation, Recommendation } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
+import WeatherMetricsCard from "@/components/WeatherMetricsCard";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -105,6 +106,8 @@ function BikesContent() {
             )}
           </div>
         )}
+
+        <WeatherMetricsCard city={city} context="bikes" />
 
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

@@ -13,6 +13,7 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { DashboardOverview, PulseScore } from "@/lib/types";
+import WeatherMetricsCard from "@/components/WeatherMetricsCard";
 
 const RUSH_COLOR: Record<string, string> = {
   "Peak Rush Hour": "#ef4444",
@@ -132,6 +133,13 @@ function DashboardContent() {
               />
             </div>
           )}
+        </div>
+      </section>
+
+      {/* Weather Impact Banner */}
+      <section className="px-4 pb-2">
+        <div className="max-w-6xl mx-auto">
+          <WeatherMetricsCard city={city} context="vibe" />
         </div>
       </section>
 
