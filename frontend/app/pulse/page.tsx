@@ -6,6 +6,7 @@ import { getPulseScore } from "@/lib/api";
 import type { PulseScore } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
+import { formatCityTime } from "@/lib/city-time";
 
 const DOMAIN_ICONS: Record<string, string> = {
   parking: "🅿",
@@ -120,7 +121,7 @@ function PulseContent() {
             <div className="flex flex-col items-center gap-2 mb-10">
               <PulseRing score={pulse.pulse_score} color={pulse.color} label={pulse.label} />
               <p className="text-xs" style={{ color: "var(--muted)" }}>
-                {city} · {new Date(pulse.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                {city} · {formatCityTime(pulse.timestamp, city)}
               </p>
             </div>
 

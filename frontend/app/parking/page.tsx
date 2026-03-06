@@ -11,6 +11,7 @@ import type { ParkingZone, Recommendation } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
+import { nowInCityIso, formatCityTime } from "@/lib/city-time";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -29,10 +30,7 @@ function ParkingContent() {
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { pct: number; spots: number; explain: string }>>({});
   const [showFuturePanel, setShowFuturePanel] = useState(false);
-  const [futureTime, setFutureTime] = useState(() => {
-    const d = new Date(); d.setSeconds(0, 0);
-    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours()+1)}:${p(d.getMinutes())}`;
-  });
+  const [futureTime, setFutureTime] = useState(() => nowInCityIso(city));
 
   // Recommend state
   const [showRecommend, setShowRecommend] = useState(false);
@@ -49,6 +47,7 @@ function ParkingContent() {
   }, [city]);
 
   useEffect(() => { setLoading(true); fetchZones(); }, [fetchZones]);
+  useEffect(() => { setFutureTime(nowInCityIso(city)); }, [city]);
   usePolling(fetchZones);
 
   async function handlePredict(zone: ParkingZone) {
@@ -137,7 +136,7 @@ function ParkingContent() {
               value={futureTime}
               onChange={e => setFutureTime(e.target.value)}
               className="text-xs"
-              min={new Date().toISOString().slice(0,16)}
+              min={nowInCityIso(city)}
             />
             <p className="text-xs" style={{ color: "var(--muted)" }}>
               Click ⬡ Predict on any card below to get AI forecast for this time
@@ -209,13 +208,13 @@ function ParkingContent() {
                       {zone.hourly_rate > 0 ? `$${zone.hourly_rate}/hr` : "Free"}
                     </span>
                     {zone.last_updated && (
-                      <span>Updated {new Date(zone.last_updated).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}</span>
+                      <span>Updated {formatCityTime(zone.last_updated, city)}</span>
                     )}
                   </div>
 
                   {pred && (
                     <div className="p-3 rounded-lg text-xs" style={{ background: "rgba(59,130,246,0.06)", border: "1px solid rgba(59,130,246,0.15)" }}>
-                      <p style={{ color: "#93c5fd" }}>AI Prediction for {new Date(futureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}:</p>
+                      <p style={{ color: "#93c5fd" }}>AI Prediction for {formatCityTime(futureTime, city)}:</p>
                       <p className="mt-1" style={{ color: "var(--text)" }}>
                         {pred.spots} spots available ({pred.pct.toFixed(0)}% full)
                       </p>

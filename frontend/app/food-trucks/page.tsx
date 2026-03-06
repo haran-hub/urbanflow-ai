@@ -9,6 +9,7 @@ import type { FoodTruck } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
+import { nowInCityIso, formatCityTime } from "@/lib/city-time";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -32,10 +33,7 @@ function FoodTrucksContent() {
   const [predictions, setPredictions] = useState<Record<string, { wait: number; label: string; explain: string }>>({});
   const [toast, setToast] = useState<string | null>(null);
   const [showFuturePanel, setShowFuturePanel] = useState(false);
-  const [futureTime, setFutureTime] = useState(() => {
-    const d = new Date(); d.setSeconds(0, 0);
-    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours()+1)}:${p(d.getMinutes())}`;
-  });
+  const [futureTime, setFutureTime] = useState(() => nowInCityIso(city));
 
   const fetchTrucks = useCallback(async () => {
     try {
@@ -47,6 +45,7 @@ function FoodTrucksContent() {
   }, [city, cuisine]);
 
   useEffect(() => { setLoading(true); fetchTrucks(); }, [fetchTrucks]);
+  useEffect(() => { setFutureTime(nowInCityIso(city)); }, [city]);
   usePolling(fetchTrucks);
 
   async function handlePredict(truck: FoodTruck) {
@@ -120,7 +119,7 @@ function FoodTrucksContent() {
               value={futureTime}
               onChange={e => setFutureTime(e.target.value)}
               className="text-xs"
-              min={new Date().toISOString().slice(0,16)}
+              min={nowInCityIso(city)}
             />
             <p className="text-xs" style={{ color: "var(--muted)" }}>
               Click ⬡ Predict on any card below to get AI forecast for this time
@@ -211,7 +210,7 @@ function FoodTrucksContent() {
 
                   {pred && (
                     <div className="p-2.5 rounded-lg text-xs" style={{ background: `rgba(249,115,22,0.06)`, border: `1px solid rgba(249,115,22,0.15)` }}>
-                      <span style={{ color: ACCENT }}>AI at {new Date(futureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: </span>
+                      <span style={{ color: ACCENT }}>AI at {formatCityTime(futureTime, city)}: </span>
                       <span style={{ color: "var(--text)" }}>{pred.wait} min ({pred.label})</span>
                       <p className="mt-0.5" style={{ color: "var(--muted)" }}>{pred.explain}</p>
                     </div>

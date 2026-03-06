@@ -9,6 +9,7 @@ import { getTransitRoutes, predictTransit } from "@/lib/api";
 import type { TransitRoute } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
+import { nowInCityIso, formatCityTime } from "@/lib/city-time";
 
 const TYPE_ICONS: Record<string, string> = { bus: "🚌", subway: "🚇", tram: "🚋", ferry: "⛴" };
 const TYPE_COLOR: Record<string, string> = { bus: "#f59e0b", subway: "#3b82f6", tram: "#22c55e", ferry: "#0ea5e9" };
@@ -24,10 +25,7 @@ function TransitContent() {
 
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { level: number; label: string; explain: string }>>({});
-  const [departAt, setDepartAt] = useState(() => {
-    const d = new Date(); d.setHours(d.getHours() + 1, 0, 0, 0);
-    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours())}:${p(d.getMinutes())}`;
-  });
+  const [departAt, setDepartAt] = useState(() => nowInCityIso(city, 1));
 
   const fetchRoutes = useCallback(async () => {
     try {
@@ -39,6 +37,7 @@ function TransitContent() {
   }, [city]);
 
   useEffect(() => { setLoading(true); fetchRoutes(); }, [fetchRoutes]);
+  useEffect(() => { setDepartAt(nowInCityIso(city, 1)); }, [city]);
   usePolling(fetchRoutes);
 
   async function handlePredict(route: TransitRoute) {
@@ -138,7 +137,7 @@ function TransitContent() {
 
                       {pred && (
                         <div className="mt-3 p-2.5 rounded-lg text-xs" style={{ background: "rgba(34,197,94,0.06)", border: "1px solid rgba(34,197,94,0.15)" }}>
-                          <span style={{ color: "#4ade80" }}>AI at {new Date(departAt).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: </span>
+                          <span style={{ color: "#4ade80" }}>AI at {formatCityTime(departAt, city)}: </span>
                           <span style={{ color: "var(--text)" }}>{pred.label} ({pred.level}%)</span>
                           <span style={{ color: "var(--muted)" }}> — {pred.explain}</span>
                         </div>

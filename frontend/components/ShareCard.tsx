@@ -1,6 +1,7 @@
 "use client";
 import { useRef, useState } from "react";
 import type { DashboardOverview, PulseScore } from "@/lib/types";
+import { cityNowString } from "@/lib/city-time";
 
 interface Props {
   city: string;
@@ -71,7 +72,7 @@ export default function ShareCard({ city, overview, pulse }: Props) {
             <div>
               <p className="text-sm font-bold" style={{ color: "var(--text)" }}>{city}</p>
               <p className="text-xs" style={{ color: "var(--muted)" }}>
-                {new Date().toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · Live
+                {cityNowString(city)} · Live
               </p>
             </div>
           </div>

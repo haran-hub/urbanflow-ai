@@ -10,6 +10,7 @@ import type { EVStation, Recommendation } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
+import { nowInCityIso } from "@/lib/city-time";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -30,10 +31,7 @@ function EVContent() {
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { wait: number; explain: string }>>({});
   const [showFuturePanel, setShowFuturePanel] = useState(false);
-  const [futureTime, setFutureTime] = useState(() => {
-    const d = new Date(); d.setSeconds(0, 0);
-    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours()+1)}:${p(d.getMinutes())}`;
-  });
+  const [futureTime, setFutureTime] = useState(() => nowInCityIso(city));
 
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [recommending, setRecommending] = useState(false);
@@ -50,6 +48,7 @@ function EVContent() {
   }, [city]);
 
   useEffect(() => { setLoading(true); fetchStations(); }, [fetchStations]);
+  useEffect(() => { setFutureTime(nowInCityIso(city)); }, [city]);
   usePolling(fetchStations);
 
   async function handlePredict(station: EVStation) {
@@ -138,7 +137,7 @@ function EVContent() {
               value={futureTime}
               onChange={e => setFutureTime(e.target.value)}
               className="text-xs"
-              min={new Date().toISOString().slice(0,16)}
+              min={nowInCityIso(city)}
             />
             <p className="text-xs" style={{ color: "var(--muted)" }}>
               Click ⬡ Predict on any card below to get AI forecast for this time

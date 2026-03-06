@@ -6,6 +6,7 @@ import { getBriefing } from "@/lib/api";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { BriefingResponse } from "@/lib/types";
+import { formatCityTime } from "@/lib/city-time";
 
 function BriefingContent() {
   const params = useSearchParams();
@@ -60,7 +61,7 @@ function BriefingContent() {
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
                   <span className="text-xs font-medium" style={{ color: "var(--muted)" }}>
-                    {new Date(data.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} · Live
+                    {formatCityTime(data.timestamp, city)} · Live
                   </span>
                 </div>
                 {data.ai_generated && (

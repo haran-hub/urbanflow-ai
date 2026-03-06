@@ -10,6 +10,7 @@ import type { LocalService } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
+import { nowInCityIso, formatCityTime } from "@/lib/city-time";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
 
@@ -39,10 +40,7 @@ function ServicesContent() {
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { wait: number; label: string; explain: string }>>({});
   const [showFuturePanel, setShowFuturePanel] = useState(false);
-  const [futureTime, setFutureTime] = useState(() => {
-    const d = new Date(); d.setSeconds(0, 0);
-    const p=(n:number)=>String(n).padStart(2,"0"); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())}T${p(d.getHours()+1)}:${p(d.getMinutes())}`;
-  });
+  const [futureTime, setFutureTime] = useState(() => nowInCityIso(city));
 
   const fetchServices = useCallback(async () => {
     try {
@@ -54,6 +52,7 @@ function ServicesContent() {
   }, [city, category]);
 
   useEffect(() => { setLoading(true); fetchServices(); }, [fetchServices]);
+  useEffect(() => { setFutureTime(nowInCityIso(city)); }, [city]);
   usePolling(fetchServices);
 
   async function handlePredict(service: LocalService) {
@@ -121,7 +120,7 @@ function ServicesContent() {
               value={futureTime}
               onChange={e => setFutureTime(e.target.value)}
               className="text-xs"
-              min={new Date().toISOString().slice(0,16)}
+              min={nowInCityIso(city)}
             />
             <p className="text-xs" style={{ color: "var(--muted)" }}>
               Click ⬡ Predict on any card below to get AI forecast for this time
@@ -208,7 +207,7 @@ function ServicesContent() {
 
                   {pred && (
                     <div className="p-2.5 rounded-lg text-xs" style={{ background: "rgba(168,85,247,0.06)", border: "1px solid rgba(168,85,247,0.15)" }}>
-                      <span style={{ color: "#c084fc" }}>AI at {new Date(futureTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}: </span>
+                      <span style={{ color: "#c084fc" }}>AI at {formatCityTime(futureTime, city)}: </span>
                       <span style={{ color: "var(--text)" }}>{pred.wait} min ({pred.label})</span>
                       <p className="mt-0.5" style={{ color: "var(--muted)" }}>{pred.explain}</p>
                     </div>
