@@ -11,8 +11,10 @@ import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 import { nowInCityIso, formatCityTime } from "@/lib/city-time";
 import WeatherMetricsCard from "@/components/WeatherMetricsCard";
+import type { DirectionsDest } from "@/components/DirectionsPanel";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
+const DirectionsPanel = dynamic(() => import("@/components/DirectionsPanel"), { ssr: false });
 
 const ACCENT = "#f97316";
 
@@ -35,6 +37,7 @@ function FoodTrucksContent() {
   const [toast, setToast] = useState<string | null>(null);
   const [showFuturePanel, setShowFuturePanel] = useState(false);
   const [futureTime, setFutureTime] = useState(() => nowInCityIso(city));
+  const [directionsDest, setDirectionsDest] = useState<DirectionsDest | null>(null);
 
   const fetchTrucks = useCallback(async () => {
     try {
@@ -223,6 +226,9 @@ function FoodTrucksContent() {
                     <button onClick={() => { if (!showFuturePanel) setShowFuturePanel(true); handlePredict(t); }} disabled={predicting === t.id} className="btn-ghost text-xs flex-1">
                       {predicting === t.id ? "Predicting…" : "⬡ Predict Wait"}
                     </button>
+                    <button onClick={() => setDirectionsDest({ name: t.name, lat: t.lat, lng: t.lng, icon: "🚚", accent: ACCENT, meta: `${t.cuisine} · ${t.is_open ? "Open" : "Closed"}` })} className="btn-ghost text-xs flex-1">
+                      📍 Directions
+                    </button>
                   </div>
                 </div>
               );
@@ -231,6 +237,7 @@ function FoodTrucksContent() {
         )}
       </div>
 
+      {directionsDest && <DirectionsPanel {...directionsDest} onClose={() => setDirectionsDest(null)} />}
       {toast && <Toast message={toast} type="error" onClose={() => setToast(null)} />}
     </main>
   );

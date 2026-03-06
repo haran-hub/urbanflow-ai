@@ -12,8 +12,10 @@ import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 import { nowInCityIso } from "@/lib/city-time";
 import HourlyForecast from "@/components/HourlyForecast";
+import type { DirectionsDest } from "@/components/DirectionsPanel";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
+const DirectionsPanel = dynamic(() => import("@/components/DirectionsPanel"), { ssr: false });
 
 const STATUS_STYLE: Record<string, { color: string; bg: string }> = {
   Available: { color: "#22c55e", bg: "rgba(34,197,94,0.1)" },
@@ -38,6 +40,7 @@ function EVContent() {
   const [recommending, setRecommending] = useState(false);
   const [batteryPct, setBatteryPct] = useState(20);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [directionsDest, setDirectionsDest] = useState<DirectionsDest | null>(null);
 
   const fetchStations = useCallback(async () => {
     try {
@@ -226,6 +229,7 @@ function EVContent() {
                       {predicting === s.id ? "…" : "⬡ Predict Wait"}
                     </button>
                     <button onClick={() => setBestTimeStation(s)} className="btn-ghost text-xs flex-1">⏱ Best Time</button>
+                    <button onClick={() => setDirectionsDest({ name: s.name, lat: s.lat, lng: s.lng, icon: "⚡", accent: "#f59e0b", meta: `${s.available_ports} / ${s.total_ports} ports · ${s.status}` })} className="btn-ghost text-xs flex-1">📍 Directions</button>
                   </div>
                 </div>
               );
@@ -237,6 +241,7 @@ function EVContent() {
       {bestTimeStation && (
         <BestTimeModal entityType="ev" entityId={bestTimeStation.id} entityName={bestTimeStation.name} onClose={() => setBestTimeStation(null)} />
       )}
+      {directionsDest && <DirectionsPanel {...directionsDest} onClose={() => setDirectionsDest(null)} />}
       {toast && <Toast message={toast} type="error" onClose={() => setToast(null)} />}
     </main>
   );

@@ -10,8 +10,10 @@ import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 import WeatherMetricsCard from "@/components/WeatherMetricsCard";
+import type { DirectionsDest } from "@/components/DirectionsPanel";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
+const DirectionsPanel = dynamic(() => import("@/components/DirectionsPanel"), { ssr: false });
 
 const ACCENT = "#10b981";
 
@@ -30,6 +32,7 @@ function BikesContent() {
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [recommending, setRecommending] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [directionsDest, setDirectionsDest] = useState<DirectionsDest | null>(null);
 
   const fetchStations = useCallback(async () => {
     try {
@@ -181,6 +184,15 @@ function BikesContent() {
                       <span style={{ color: "var(--text)" }}>{recommendation.reason}</span>
                     </div>
                   )}
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => setDirectionsDest({ name: s.name, lat: s.lat, lng: s.lng, icon: "🚲", accent: ACCENT, meta: `${totalAvail} bikes · ${s.available_docks} docks` })}
+                      className="btn-ghost text-xs flex-1"
+                    >
+                      📍 Directions
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -188,6 +200,7 @@ function BikesContent() {
         )}
       </div>
 
+      {directionsDest && <DirectionsPanel {...directionsDest} onClose={() => setDirectionsDest(null)} />}
       {toast && <Toast message={toast} type="error" onClose={() => setToast(null)} />}
     </main>
   );

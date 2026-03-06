@@ -11,8 +11,10 @@ import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 import { nowInCityIso, formatCityTime } from "@/lib/city-time";
+import type { DirectionsDest } from "@/components/DirectionsPanel";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
+const DirectionsPanel = dynamic(() => import("@/components/DirectionsPanel"), { ssr: false });
 
 const CAT_ICONS: Record<string, string> = {
   dmv: "🏛", hospital: "🏥", bank: "🏦", post_office: "📮", pharmacy: "💊",
@@ -37,6 +39,7 @@ function ServicesContent() {
   const [toast, setToast] = useState<string | null>(null);
 
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
+  const [directionsDest, setDirectionsDest] = useState<DirectionsDest | null>(null);
   const [predicting, setPredicting] = useState<string | null>(null);
   const [predictions, setPredictions] = useState<Record<string, { wait: number; label: string; explain: string }>>({});
   const [showFuturePanel, setShowFuturePanel] = useState(false);
@@ -218,6 +221,7 @@ function ServicesContent() {
                       {predicting === s.id ? "Predicting…" : "⬡ Predict Wait"}
                     </button>
                     <button onClick={() => setBestTimeService(s)} className="btn-ghost text-xs flex-1">⏱ Best Time</button>
+                    <button onClick={() => setDirectionsDest({ name: s.name, lat: s.lat, lng: s.lng, icon: CAT_ICONS[s.category] ?? "🏛", accent: "#a855f7", meta: `${s.is_open ? "Open" : "Closed"} · ${s.estimated_wait_minutes} min wait` })} className="btn-ghost text-xs flex-1">📍 Directions</button>
                   </div>
                 </div>
               );
@@ -229,6 +233,7 @@ function ServicesContent() {
       {bestTimeService && (
         <BestTimeModal entityType="service" entityId={bestTimeService.id} entityName={bestTimeService.name} onClose={() => setBestTimeService(null)} />
       )}
+      {directionsDest && <DirectionsPanel {...directionsDest} onClose={() => setDirectionsDest(null)} />}
       {toast && <Toast message={toast} type="error" onClose={() => setToast(null)} />}
     </main>
   );

@@ -10,8 +10,10 @@ import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 import WeatherMetricsCard from "@/components/WeatherMetricsCard";
+import type { DirectionsDest } from "@/components/DirectionsPanel";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
+const DirectionsPanel = dynamic(() => import("@/components/DirectionsPanel"), { ssr: false });
 
 const ACCENT = "#ec4899";
 
@@ -44,6 +46,7 @@ function NoiseContent() {
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "map">("list");
   const [toast, setToast] = useState<string | null>(null);
+  const [directionsDest, setDirectionsDest] = useState<DirectionsDest | null>(null);
 
   const fetchZones = useCallback(async () => {
     try {
@@ -163,6 +166,15 @@ function NoiseContent() {
                         style={{ width: `${z.crowd_density}%`, background: ACCENT }} />
                     </div>
                   </div>
+
+                  <div className="flex gap-2 pt-1">
+                    <button
+                      onClick={() => setDirectionsDest({ name: z.name, lat: z.lat, lng: z.lng, icon: ZONE_TYPE_ICON[z.zone_type] || "⬡", accent: ACCENT, meta: `${z.vibe_label} · ${z.noise_db} dB` })}
+                      className="btn-ghost text-xs flex-1"
+                    >
+                      📍 Directions
+                    </button>
+                  </div>
                 </div>
               );
             })}
@@ -170,6 +182,7 @@ function NoiseContent() {
         )}
       </div>
 
+      {directionsDest && <DirectionsPanel {...directionsDest} onClose={() => setDirectionsDest(null)} />}
       {toast && <Toast message={toast} type="error" onClose={() => setToast(null)} />}
     </main>
   );

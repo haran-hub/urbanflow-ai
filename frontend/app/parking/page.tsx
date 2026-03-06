@@ -13,8 +13,10 @@ import { usePolling } from "@/hooks/usePolling";
 import type { MapItem } from "@/components/CityMap";
 import { nowInCityIso, formatCityTime } from "@/lib/city-time";
 import HourlyForecast from "@/components/HourlyForecast";
+import type { DirectionsDest } from "@/components/DirectionsPanel";
 
 const CityMap = dynamic(() => import("@/components/CityMap"), { ssr: false });
+const DirectionsPanel = dynamic(() => import("@/components/DirectionsPanel"), { ssr: false });
 
 const ZONE_ICONS: Record<string, string> = { garage: "🏢", lot: "⬜", street: "🛣" };
 
@@ -37,6 +39,7 @@ function ParkingContent() {
   const [showRecommend, setShowRecommend] = useState(false);
   const [recommendation, setRecommendation] = useState<Recommendation | null>(null);
   const [recommending, setRecommending] = useState(false);
+  const [directionsDest, setDirectionsDest] = useState<DirectionsDest | null>(null);
 
   const fetchZones = useCallback(async () => {
     try {
@@ -239,6 +242,12 @@ function ParkingContent() {
                     >
                       ⏱ Best Time
                     </button>
+                    <button
+                      onClick={() => setDirectionsDest({ name: zone.name, lat: zone.lat, lng: zone.lng, icon: "🅿", accent: "#60a5fa", meta: `${zone.available_spots} / ${zone.total_spots} spots` })}
+                      className="btn-ghost text-xs flex-1"
+                    >
+                      📍 Directions
+                    </button>
                   </div>
                 </div>
               );
@@ -255,6 +264,7 @@ function ParkingContent() {
           onClose={() => setBestTimeZone(null)}
         />
       )}
+      {directionsDest && <DirectionsPanel {...directionsDest} onClose={() => setDirectionsDest(null)} />}
       {toast && <Toast message={toast} type="error" onClose={() => setToast(null)} />}
     </main>
   );
