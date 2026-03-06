@@ -1,7 +1,8 @@
 "use client";
 import { useState } from "react";
 
-const FEEDBACK_URL = process.env.NEXT_PUBLIC_FEEDBACK_URL;
+// Set NEXT_PUBLIC_FORMSPREE_ID in Vercel env vars to receive feedback by email
+const FORMSPREE_ID = process.env.NEXT_PUBLIC_FORMSPREE_ID;
 
 const EMOJIS = [
   { v: 1, e: "😕", label: "Poor" },
@@ -14,20 +15,44 @@ export default function FeedbackWidget() {
   const [open, setOpen] = useState(false);
   const [rating, setRating] = useState<number | null>(null);
   const [text, setText] = useState("");
-  const [sent, setSent] = useState(false);
+  const [status, setStatus] = useState<"idle" | "sending" | "sent" | "error">("idle");
 
-  function handleSubmit() {
+  function close() {
+    setOpen(false);
+    setTimeout(() => { setRating(null); setText(""); setStatus("idle"); }, 300);
+  }
+
+  async function handleSubmit() {
     if (!rating) return;
     const emoji = EMOJIS.find((e) => e.v === rating);
-    if (FEEDBACK_URL) {
-      window.open(FEEDBACK_URL, "_blank", "width=600,height=700,noopener");
-    } else {
-      const subject = encodeURIComponent(`UrbanFlow AI Feedback — ${emoji?.e} ${emoji?.label}`);
-      const body = encodeURIComponent(`Rating: ${emoji?.e} ${emoji?.label}\n\n${text || "(no comment)"}\n\nPage: ${window.location.href}`);
-      window.open(`mailto:?subject=${subject}&body=${body}`);
+
+    if (!FORMSPREE_ID) {
+      // No service configured — just show success (dev mode)
+      setStatus("sent");
+      setTimeout(close, 2500);
+      return;
     }
-    setSent(true);
-    setTimeout(() => { setSent(false); setOpen(false); setRating(null); setText(""); }, 2500);
+
+    setStatus("sending");
+    try {
+      const res = await fetch(`https://formspree.io/f/${FORMSPREE_ID}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({
+          rating: `${emoji?.e} ${emoji?.label} (${rating}/4)`,
+          comment: text || "(no comment)",
+          page: window.location.href,
+        }),
+      });
+      if (res.ok) {
+        setStatus("sent");
+        setTimeout(close, 2500);
+      } else {
+        setStatus("error");
+      }
+    } catch {
+      setStatus("error");
+    }
   }
 
   return (
@@ -90,14 +115,14 @@ export default function FeedbackWidget() {
               <p style={{ color: "#64748b", fontSize: 11, marginTop: 1 }}>Help us improve UrbanFlow AI</p>
             </div>
             <button
-              onClick={() => setOpen(false)}
+              onClick={close}
               style={{ color: "#475569", fontSize: 16, background: "none", border: "none", cursor: "pointer", lineHeight: 1 }}
             >
               ✕
             </button>
           </div>
 
-          {sent ? (
+          {status === "sent" ? (
             <div style={{ padding: "28px 14px", textAlign: "center" }}>
               <p style={{ fontSize: 28 }}>🎉</p>
               <p style={{ color: "white", fontWeight: 600, fontSize: 13, marginTop: 8 }}>Thanks for your feedback!</p>
@@ -106,7 +131,7 @@ export default function FeedbackWidget() {
           ) : (
             <div style={{ padding: "14px" }}>
               {/* Emoji rating */}
-              <p style={{ color: "#94a3b8", fontSize: 11, marginBottom: 8 }}>How's your experience?</p>
+              <p style={{ color: "#94a3b8", fontSize: 11, marginBottom: 8 }}>How&apos;s your experience?</p>
               <div style={{ display: "flex", gap: 6, marginBottom: 12 }}>
                 {EMOJIS.map((e) => (
                   <button
@@ -155,29 +180,37 @@ export default function FeedbackWidget() {
                 }}
               />
 
+              {status === "error" && (
+                <p style={{ color: "#f87171", fontSize: 11, marginBottom: 8, textAlign: "center" }}>
+                  Failed to send — please try again
+                </p>
+              )}
+
               {/* Submit */}
               <button
                 onClick={handleSubmit}
-                disabled={!rating}
+                disabled={!rating || status === "sending"}
                 style={{
                   width: "100%",
                   padding: "9px 0",
                   borderRadius: 10,
                   fontSize: 12,
                   fontWeight: 700,
-                  background: rating ? "linear-gradient(135deg, #6366f1, #8b5cf6)" : "rgba(255,255,255,0.06)",
-                  color: rating ? "white" : "#475569",
+                  background: rating && status !== "sending"
+                    ? "linear-gradient(135deg, #6366f1, #8b5cf6)"
+                    : "rgba(255,255,255,0.06)",
+                  color: rating && status !== "sending" ? "white" : "#475569",
                   border: "none",
-                  cursor: rating ? "pointer" : "not-allowed",
+                  cursor: rating && status !== "sending" ? "pointer" : "not-allowed",
                   transition: "all 0.2s",
                   boxShadow: rating ? "0 2px 12px rgba(99,102,241,0.35)" : "none",
                 }}
               >
-                {FEEDBACK_URL ? "Open Feedback Form ↗" : "Send Feedback"}
+                {status === "sending" ? "Sending…" : "Send Feedback"}
               </button>
 
               <p style={{ color: "#334155", fontSize: 10, textAlign: "center", marginTop: 8 }}>
-                Your feedback is anonymous
+                Anonymous · takes 10 seconds
               </p>
             </div>
           )}
