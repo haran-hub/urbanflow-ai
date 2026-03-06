@@ -191,6 +191,6 @@ async def get_neighborhoods(city: str = "San Francisco", db: AsyncSession = Depe
 
     return {
         "city": city,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
         "neighborhoods": results,
     }

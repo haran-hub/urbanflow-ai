@@ -137,7 +137,7 @@ Return ONLY valid JSON (no extra text):
         "best_time": best_time,
         "domains": domains,
         "ai_generated": ai_generated,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
     }
     _cache[city] = (now, result)
     return result

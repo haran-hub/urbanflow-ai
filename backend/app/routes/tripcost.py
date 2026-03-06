@@ -136,5 +136,5 @@ Tips must be specific, actionable, city-aware, and reference real alternatives."
         "breakdown": breakdown,
         "savings_tips": savings_tips,
         "ai_generated": ai_generated,
-        "timestamp": datetime.utcnow().isoformat(),
+        "timestamp": datetime.utcnow().isoformat() + "Z",
     }

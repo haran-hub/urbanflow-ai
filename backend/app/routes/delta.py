@@ -79,7 +79,7 @@ async def get_delta(city: str = "San Francisco", db: AsyncSession = Depends(get_
             "city": city,
             "has_data": False,
             "message": "Baseline captured. Check back in a few minutes to see what changed.",
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.utcnow().isoformat() + "Z",
             "metrics": [],
         }
 
