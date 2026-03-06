@@ -251,6 +251,71 @@ html, body {
   animation-delay: var(--d, 0s);
 }
 
+/* ── Weather background animations ────────────────────────────────────────── */
+
+@keyframes wxRain {
+  0%   { transform: translateY(-20px); opacity: 0; }
+  8%   { opacity: 1; }
+  92%  { opacity: 0.85; }
+  100% { transform: translateY(110vh); opacity: 0; }
+}
+
+@keyframes wxSnow {
+  0%   { transform: translateY(-10px) translateX(0); opacity: 0; }
+  10%  { opacity: 1; }
+  50%  { transform: translateY(50vh) translateX(18px); }
+  100% { transform: translateY(110vh) translateX(-12px); opacity: 0; }
+}
+
+@keyframes wxStars {
+  from { opacity: 0.2; transform: scale(0.75); }
+  to   { opacity: 1;   transform: scale(1.1);  }
+}
+
+@keyframes wxFog {
+  from { transform: translateX(0);     opacity: 0.5; }
+  to   { transform: translateX(60px);  opacity: 1;   }
+}
+
+@keyframes wxSunPulse {
+  from { opacity: 0.65; transform: scale(1);   }
+  to   { opacity: 1;    transform: scale(1.15); }
+}
+
+@keyframes wxWind {
+  0%   { transform: translateX(-5%) scaleX(0.3); opacity: 0; }
+  30%  { opacity: 1; }
+  70%  { opacity: 1; }
+  100% { transform: translateX(115%) scaleX(1.2); opacity: 0; }
+}
+
+@keyframes wxLightning {
+  0%, 93%, 100% { background: transparent; }
+  94%            { background: rgba(168,85,247,0.10); }
+  95%            { background: transparent; }
+  96%            { background: rgba(168,85,247,0.07); }
+}
+
+/* Smooth theme transitions — applied globally so weather palette changes fade in */
+*, *::before, *::after {
+  transition:
+    background-color 1.2s ease,
+    border-color 1.2s ease,
+    color 0.6s ease,
+    box-shadow 1.2s ease;
+}
+
+/* Exclude interactive elements from slow color transitions */
+button, a, input, select, [role="button"] {
+  transition:
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease,
+    transform 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
 input, select {
   background: var(--card2);
   border: 1px solid var(--border);

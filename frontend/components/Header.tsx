@@ -1,7 +1,9 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useWeatherTheme } from "@/hooks/useWeatherTheme";
+import WeatherBackground from "@/components/WeatherBackground";
 
 const CITIES = ["San Francisco", "New York", "Austin"];
 
@@ -56,13 +58,30 @@ interface HeaderProps {
 export default function Header({ city, onCityChange, liveStatus }: HeaderProps) {
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { weather, theme } = useWeatherTheme(city);
+
+  // Apply weather-based CSS variables globally
+  useEffect(() => {
+    if (!theme) return;
+    const root = document.documentElement;
+    root.style.setProperty("--bg",           theme.bg);
+    root.style.setProperty("--card",         theme.card);
+    root.style.setProperty("--card2",        theme.card2);
+    root.style.setProperty("--border",       theme.border);
+    root.style.setProperty("--accent",       theme.accent);
+    root.style.setProperty("--accent-glow",  theme.accentGlow);
+    root.style.setProperty("--muted",        theme.muted);
+    document.body.style.background = theme.bg;
+  }, [theme]);
+
+  const gradientBar = theme?.gradientBar ?? "linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899)";
 
   return (
     <>
       {/* ── Mobile top bar ─────────────────────────────────────────────────── */}
       <header className="md:hidden glass fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)]">
         {/* Gradient accent line */}
-        <div style={{ height: 2, background: "linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899)" }} />
+        <div style={{ height: 2, background: gradientBar, transition: "background 1.2s ease" }} />
 
         <div className="h-14 px-4 flex items-center justify-between">
           <Link href="/" className="flex items-center gap-2">
@@ -243,8 +262,32 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
               {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
+
+          {/* Weather badge */}
+          {weather && (
+            <div
+              className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px]"
+              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}
+            >
+              <span style={{ fontSize: 14 }}>{weather.icon}</span>
+              <span style={{ color: "var(--muted)" }}>{weather.description}</span>
+              <span className="ml-auto font-semibold" style={{ color: "var(--accent)" }}>
+                {Math.round(weather.temp_c * 9 / 5 + 32)}°F
+              </span>
+            </div>
+          )}
         </div>
       </aside>
+
+      {/* Weather particle overlay */}
+      {weather && theme && (
+        <WeatherBackground
+          condition={weather.condition}
+          particleColor={theme.particleColor}
+          particleOpacity={theme.particleOpacity}
+          glowColor={theme.glowColor}
+        />
+      )}
     </>
   );
 }
