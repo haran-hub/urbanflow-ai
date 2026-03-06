@@ -88,6 +88,8 @@ export default function WeatherBackground({
   const isFoggy = condition === "foggy";
   const isClearDay = condition === "clear-day";
   const isStormy = condition === "stormy";
+  const isOvercast = condition === "overcast";
+  const isPartlyCloudy = condition === "partly-cloudy-day" || condition === "partly-cloudy-night";
 
   return (
     <div
@@ -99,7 +101,7 @@ export default function WeatherBackground({
         overflow: "hidden",
       }}
     >
-      {/* Ambient glow at top */}
+      {/* Ambient glow at top — taller so it's visible on normal pages */}
       {glowColor !== "transparent" && (
         <div
           style={{
@@ -107,27 +109,61 @@ export default function WeatherBackground({
             top: 0,
             left: "50%",
             transform: "translateX(-50%)",
-            width: "80%",
-            height: "300px",
-            background: `radial-gradient(ellipse at 50% 0%, ${glowColor} 0%, transparent 75%)`,
+            width: "100%",
+            height: "500px",
+            background: `radial-gradient(ellipse at 50% 0%, ${glowColor} 0%, transparent 70%)`,
           }}
         />
       )}
 
-      {/* Sunny day warm glow */}
+      {/* Sunny day warm glow blob */}
       {isClearDay && (
         <div
           style={{
             position: "absolute",
             top: "-60px",
             right: "10%",
-            width: "400px",
-            height: "400px",
-            background: `radial-gradient(circle, rgba(251,191,36,0.07) 0%, transparent 70%)`,
+            width: "500px",
+            height: "500px",
+            background: `radial-gradient(circle, rgba(251,191,36,0.10) 0%, transparent 70%)`,
             animation: "wxSunPulse 6s ease-in-out infinite alternate",
           }}
         />
       )}
+
+      {/* Overcast — slow drifting grey bands */}
+      {isOvercast && [0, 1, 2].map((i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: "-30%",
+            top: `${10 + i * 30}%`,
+            width: "160%",
+            height: "120px",
+            background: `linear-gradient(90deg, transparent, rgba(148,163,184,0.035), transparent)`,
+            filter: "blur(40px)",
+            animation: `wxFog ${12 + i * 5}s ease-in-out -${i * 4}s infinite alternate`,
+          }}
+        />
+      ))}
+
+      {/* Partly cloudy — subtle cloud wisps */}
+      {isPartlyCloudy && [0, 1].map((i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: "-20%",
+            top: `${8 + i * 35}%`,
+            width: "140%",
+            height: "90px",
+            background: `linear-gradient(90deg, transparent, ${particleColor.replace(")", ", 0.03)").replace("rgb", "rgba")}, transparent)`,
+            filter: "blur(35px)",
+            animation: `wxFog ${10 + i * 6}s ease-in-out -${i * 3}s infinite alternate`,
+          }}
+        />
+      ))}
 
       {/* Fog bands */}
       {isFoggy && [0, 1, 2].map((i) => (
@@ -139,7 +175,7 @@ export default function WeatherBackground({
             top: `${20 + i * 28}%`,
             width: "140%",
             height: "100px",
-            background: `linear-gradient(90deg, transparent, rgba(229,231,235,0.018), transparent)`,
+            background: `linear-gradient(90deg, transparent, rgba(229,231,235,0.022), transparent)`,
             filter: "blur(30px)",
             animation: `wxFog ${7 + i * 4}s ease-in-out -${i * 3}s infinite alternate`,
           }}

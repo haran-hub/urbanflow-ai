@@ -4,6 +4,7 @@ import { useSearchParams } from "next/navigation";
 import Header from "@/components/Header";
 import { askConcierge } from "@/lib/api";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { formatCityTime } from "@/lib/city-time";
 
 interface Message {
   role: "user" | "assistant";
@@ -130,7 +131,7 @@ function ConciergeContent() {
               >
                 {m.text}
                 <div className="text-xs mt-1 opacity-50">
-                  {m.ts.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                  {formatCityTime(m.ts, city)}
                 </div>
               </div>
               {m.role === "user" && (

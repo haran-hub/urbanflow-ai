@@ -137,9 +137,7 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
                       className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium"
                       style={{
                         color: active ? "white" : "var(--muted)",
-                        background: active
-                          ? "linear-gradient(135deg, rgba(59,130,246,0.2), rgba(139,92,246,0.15))"
-                          : "transparent",
+                        background: active ? "var(--accent-glow)" : "transparent",
                         borderLeft: `2px solid ${active ? "var(--accent)" : "transparent"}`,
                       }}
                     >
@@ -160,7 +158,7 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
         style={{ background: "rgba(8,8,14,0.97)", backdropFilter: "blur(16px)" }}
       >
         {/* Gradient top accent line */}
-        <div style={{ height: 2, background: "linear-gradient(90deg, #3b82f6, #8b5cf6, #ec4899)", flexShrink: 0 }} />
+        <div style={{ height: 2, background: gradientBar, transition: "background 1.2s ease", flexShrink: 0 }} />
 
         {/* Logo */}
         <div className="px-5 py-5 border-b border-[var(--border)]" style={{ flexShrink: 0 }}>
@@ -210,10 +208,8 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
                     className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all mb-0.5 group"
                     style={{
                       color: active ? "white" : "var(--muted)",
-                      background: active
-                        ? "linear-gradient(135deg, rgba(59,130,246,0.18), rgba(139,92,246,0.12))"
-                        : "transparent",
-                      borderLeft: `2px solid ${active ? "#3b82f6" : "transparent"}`,
+                      background: active ? "var(--accent-glow)" : "transparent",
+                      borderLeft: `2px solid ${active ? "var(--accent)" : "transparent"}`,
                     }}
                   >
                     <span className="w-5 text-center text-base" style={{ opacity: active ? 1 : 0.65 }}>{n.icon}</span>
@@ -221,7 +217,7 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
                     {active && (
                       <span
                         className="w-1.5 h-1.5 rounded-full"
-                        style={{ background: "#3b82f6", boxShadow: "0 0 6px #3b82f6" }}
+                        style={{ background: "var(--accent)", boxShadow: "0 0 6px var(--accent)" }}
                       />
                     )}
                   </Link>
