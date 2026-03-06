@@ -30,7 +30,7 @@ async def get_goout(city: str = "San Francisco", db: AsyncSession = Depends(get_
         return _cache[city][1]
 
     from app.routes.concierge import _build_rich_context
-    context = await _build_rich_context(city, db)
+    context = await _build_rich_context(db, city)
 
     tz = ZoneInfo(CITY_TIMEZONES.get(city, "UTC"))
     local_now = datetime.now(tz)

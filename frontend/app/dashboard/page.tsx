@@ -137,7 +137,7 @@ function DashboardContent() {
 
       {/* City Right Now narrative + Share */}
       <section className="px-4 pb-4">
-        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 items-start">
           <div className="md:col-span-2">
             <NarrativeCard city={city} />
           </div>
