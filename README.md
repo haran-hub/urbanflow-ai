@@ -18,28 +18,33 @@ AI-powered smart city navigation — real-time data across 8 urban domains for S
 - **Food Trucks** — open/closed status, wait times, crowd levels by cuisine type
 - **Noise & Vibe** — neighborhood energy, crowd density, night scene activity
 
-### AI Features
+### 8 AI Features
 - **◎ City Pulse Score** — composite 0–100 livability index from all 8 domains, weighted by impact
 - **💬 AI City Concierge** — multi-turn Claude chat with live entity-level data (real names, addresses, numbers)
-- **⚖ Live City Compare** — SF vs New York vs Austin head-to-head across 9 metrics with winner crowns
+- **🤔 Go Out Tonight?** — AI reads live parking, transit, air, and vibe then gives a yes/no verdict with score and best time window
 - **⚡ Surge Predictor** — AI early warnings for emerging congestion with cross-domain causality chains
-- **✦ AI Planner** — Claude-powered multi-modal urban travel plan across all domains
+- **✦ AI Urban Planner** — Claude-powered multi-modal urban travel plan across all domains
 - **☀ Daily City Briefing** — AI-generated city status summary refreshed throughout the day
-- **⏱ Moment Planner** — tells you the best time window to do anything in the city right now
-- **◎ City Narrative** — 3-sentence AI mood story for the city's current state
-- **🔔 Personal Watchlist** — set custom thresholds on any metric and get instant alerts
+- **⏱ Moment Planner** — finds the optimal time window for any activity based on live city conditions
+- **◎ City Narrative** — 3-sentence AI mood story for the city's current state, updated every 5 min
+
+### 6 Smart Tools
+- **⚖ City Compare** — SF vs New York vs Austin head-to-head across 9 live metrics + Relocate Score by persona
 - **🗺 Heat Map** — multi-layer live map showing parking, EV, transit, air, and noise overlaid on the city
-- **Best Time** — least-busy window recommendation for any specific location
-- **Future Predict** — predict occupancy/wait at any future time for any entity
+- **🔔 Personal Watchlist** — set custom thresholds on any metric; get instant browser push notifications
+- **⬡ Neighborhood Report Cards** — live A–F grades for every district across parking, EV, transit, air, and vibe
+- **📊 What Changed Today** — track how city metrics shifted since earlier today; see improved vs worsened at a glance
+- **💸 Trip Cost Estimator** — pick activities and duration, get a cost breakdown with AI savings tips
 
 ### Platform
-- **Landing page** — full marketing page at `/` with hero, 8-domain showcase, AI features grid, 3-city cards, CTA
-- **Global footer** — copyright, developer credit, quick links — present on every page
+- **Weather-aware theme** — fetches real-world weather every 30 min; entire UI palette, gradients, and ambient animations (rain, snow, stars, fog, wind) change based on live conditions
+- **Landing page** — full marketing page at `/` with hero, 8-domain showcase, AI features grid, tools grid, weather theme section, 3-city cards, CTA
 - **Grouped sidebar nav** — 3 sections (Explore, AI Features, Tools) with active state indicators; hamburger on mobile
 - **Auto-refresh** — every page polls fresh data every 30 seconds and immediately on tab focus; no stale data
+- **City-local time** — all timestamps and datetime inputs use the selected city's timezone (CST/PST/EST) — not UTC or browser time
 - **Smart geolocation** — browser GPS → IP fallback (ipapi.co); manual picks persist, auto-detection stays fresh
 - **WebSocket live updates** — dashboard receives broadcast on every server snapshot cycle
-- **Consistent design** — shared dark theme, CSS design tokens, gradient accents across all 20 pages
+- **Consistent design** — shared dark theme, CSS design tokens, gradient accents, weather particle overlay across all 22 pages
 
 ---
 
@@ -48,8 +53,8 @@ AI-powered smart city navigation — real-time data across 8 urban domains for S
 | Layer | Tech |
 |-------|------|
 | Backend | FastAPI · SQLAlchemy async · SQLite · APScheduler |
-| AI | Claude API — concierge, briefing, narrative, moment planner, surge, predictions, planning |
-| Real data | Open Charge Map · Overpass OSM · OpenAQ · GBFS · 511.org · ipapi.co |
+| AI | Claude API — concierge, briefing, narrative, moment planner, surge, predictions, planning, go-out, trip cost |
+| Real data | Open Charge Map · Overpass OSM · OpenAQ · GBFS · 511.org · ipapi.co · Open-Meteo (weather) |
 | Frontend | Next.js 15 · React 19 · Tailwind CSS · react-leaflet |
 | Deploy | Render (backend + persistent disk) · Vercel (frontend) |
 
@@ -65,7 +70,7 @@ urbanflow-ai/
 │   │   ├── config.py            # pydantic-settings (.env)
 │   │   ├── models.py            # SQLAlchemy models (8 domains)
 │   │   ├── database.py          # async engine + session
-│   │   ├── scheduler.py         # APScheduler + update_city_snapshots()
+│   │   ├── scheduler.py         # APScheduler + city-timezone-aware simulation
 │   │   ├── data_engine.py       # time-aware simulation generators
 │   │   ├── real_data_fetcher.py # OCM + Overpass + OpenAQ + GBFS seed
 │   │   ├── ai_predictor.py      # Claude API — predictions, planning, best time
@@ -80,6 +85,10 @@ urbanflow-ai/
 │   │       ├── briefing     # Daily City Briefing (AI, 5-min cache)
 │   │       ├── narrative    # City Right Now Narrative (AI, 5-min cache)
 │   │       ├── moment       # Micro-moment Planner (AI)
+│   │       ├── goout        # Go Out Tonight? (AI verdict)
+│   │       ├── delta        # What Changed Today
+│   │       ├── neighborhoods # Neighborhood Report Cards
+│   │       ├── tripcost     # Trip Cost Estimator (AI tips)
 │   │       └── ws           # WebSocket
 │   └── requirements.txt
 ├── frontend/
@@ -91,22 +100,32 @@ urbanflow-ai/
 │   │   ├── plan/                # AI Urban Planner
 │   │   ├── pulse/               # City Pulse Score
 │   │   ├── concierge/           # AI Concierge chat
-│   │   ├── compare/             # Live City Compare
+│   │   ├── compare/             # City Compare + Relocate Score
 │   │   ├── briefing/            # Daily City Briefing
 │   │   ├── moment/              # Moment Planner
+│   │   ├── goout/               # Go Out Tonight?
+│   │   ├── delta/               # What Changed Today
+│   │   ├── neighborhoods/       # Neighborhood Report Cards
+│   │   ├── trip/                # Trip Cost Estimator
 │   │   ├── heatmap/             # Multi-layer Heat Map (react-leaflet)
-│   │   └── watchlist/           # Personal alert watchlist
+│   │   └── watchlist/           # Personal Watchlist + push notifications
 │   ├── components/
-│   │   ├── Header.tsx           # Grouped sidebar nav + mobile hamburger
+│   │   ├── Header.tsx           # Grouped sidebar nav + mobile hamburger + weather badge
 │   │   ├── Footer.tsx           # Global footer — copyright, developer, quick links
+│   │   ├── WeatherBackground.tsx # Fixed weather particle overlay (rain/snow/stars/fog/wind)
 │   │   ├── NarrativeCard.tsx    # City mood narrative card
 │   │   ├── SurgeWidget.tsx      # Surge alerts + causality chains
 │   │   ├── StatCard · OccupancyBar · BestTimeModal · Toast · CityMap
 │   ├── hooks/
 │   │   ├── useDetectedCity.ts   # GPS → IP fallback geolocation + manual preference
 │   │   ├── usePolling.ts        # 30-second auto-refresh + tab-focus refetch
-│   │   └── useWebSocket.ts      # WebSocket auto-reconnect
-│   └── lib/                     # api.ts, types.ts
+│   │   ├── useWebSocket.ts      # WebSocket auto-reconnect
+│   │   └── useWeatherTheme.ts   # Open-Meteo fetch, 30-min cache, CSS var injection
+│   └── lib/
+│       ├── api.ts               # All API calls, uses NEXT_PUBLIC_API_URL
+│       ├── types.ts             # Shared TypeScript types
+│       ├── city-time.ts         # City-local time helpers (nowInCityIso, formatCityTime)
+│       └── weather-themes.ts    # 11 weather conditions → CSS palette + particle config
 ├── render.yaml                  # Render Blueprint
 └── vercel.json                  # Vercel config
 ```
@@ -176,7 +195,7 @@ NEXT_PUBLIC_API_URL=https://urbanflow-ai.onrender.com
 
 | Route | Description |
 |-------|-------------|
-| `/` | Landing page — hero, domain showcase, AI features, city cards, CTA |
+| `/` | Landing page — hero, 8 domains, 8 AI features, 6 tools, weather theme, city cards, CTA |
 | `/dashboard` | Main dashboard — live stats, pulse ring, surge widget, narrative card |
 | `/parking` | Parking zones — occupancy, predictions, list/map toggle |
 | `/ev` | EV stations — port availability, queue estimates, list/map toggle |
@@ -188,12 +207,16 @@ NEXT_PUBLIC_API_URL=https://urbanflow-ai.onrender.com
 | `/noise` | Noise & vibe — neighborhood energy, vibe score |
 | `/pulse` | City Pulse Score — 0–100 composite with domain breakdown |
 | `/concierge` | AI Concierge — multi-turn Claude chat with live city data |
-| `/compare` | Live City Compare — SF vs NY vs Austin, 9 metrics |
+| `/compare` | City Compare — SF vs NY vs Austin, 9 metrics + Relocate Score |
 | `/plan` | AI Urban Planner — multi-step trip plan across all domains |
 | `/briefing` | Daily City Briefing — AI-generated live summary + highlights |
 | `/moment` | Moment Planner — best time window for any activity right now |
+| `/goout` | Go Out Tonight? — AI verdict with score, best time, domain breakdown |
+| `/delta` | What Changed Today — metric shifts since session start |
+| `/neighborhoods` | Neighborhood Report Cards — A–F grades per district |
+| `/trip` | Trip Cost Estimator — cost breakdown + AI savings tips |
 | `/heatmap` | Multi-layer Heat Map — parking, EV, transit, air, noise on map |
-| `/watchlist` | Personal Watchlist — custom metric threshold alerts |
+| `/watchlist` | Personal Watchlist — custom metric threshold alerts + push notifications |
 
 ---
 
@@ -211,6 +234,10 @@ NEXT_PUBLIC_API_URL=https://urbanflow-ai.onrender.com
 | GET | `/api/briefing/today?city=` | AI daily city briefing (5-min server cache) |
 | GET | `/api/narrative?city=` | AI city mood narrative (5-min server cache) |
 | POST | `/api/moment/plan` | Best time window for a city activity |
+| GET | `/api/goout?city=` | Go Out Tonight? verdict + score + domain breakdown |
+| GET | `/api/delta?city=` | Metric changes since baseline |
+| GET | `/api/neighborhoods?city=` | Neighborhood report cards with A–F grades |
+| POST | `/api/tripcost/estimate` | Trip cost breakdown + AI savings tips |
 | GET | `/api/parking/zones?city=` | Live parking availability |
 | GET | `/api/ev/stations?city=` | EV port status |
 | GET | `/api/transit/routes?city=` | Transit crowd + delay data |
@@ -236,6 +263,7 @@ Each `GET /api/*?city=X` request triggers an on-demand snapshot refresh for that
 | Cooldown | 5-second per-city debounce prevents backend hammering |
 | WebSocket | Dashboard auto-refreshes on every broadcast from the server |
 | Background scheduler | APScheduler periodically pulls live OCM/511 data for idle cities |
+| Weather | Open-Meteo polled every 30 min; module-level cache prevents excess requests |
 
 ---
 
@@ -251,9 +279,10 @@ Each `GET /api/*?city=X` request triggers an on-demand snapshot refresh for that
 | Bike share | GBFS feeds (Bay Wheels, Citi Bike, MetroBike) + OSM fallback |
 | Food trucks | Overpass OSM + curated city lists |
 | Noise zones | Overpass OSM venues (bars, clubs, parks, stadiums) |
+| Weather | [Open-Meteo](https://open-meteo.com) — free, no key required |
 | Geolocation | Browser GPS → [ipapi.co](https://ipapi.co) IP fallback |
 
-Occupancy %, wait times, crowd levels, and vibe scores use a time-aware simulation engine that accounts for rush hours, weekday vs weekend patterns, and each city's local timezone.
+Occupancy %, wait times, crowd levels, and vibe scores use a timezone-aware simulation engine that accounts for rush hours, weekday vs weekend patterns, and each city's local time (CST/PST/EST).
 
 ---
 
