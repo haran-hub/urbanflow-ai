@@ -5,6 +5,7 @@ import type {
   Prediction, Recommendation, BestTime, UrbanPlan,
   PulseScore, ConciergeResponse, CompareData, SurgeData,
   BriefingResponse, MomentResponse, NarrativeResponse,
+  GoOutResponse, NeighborhoodGrade, DeltaResponse, TripCostResponse,
 } from "./types";
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
@@ -174,5 +175,35 @@ export async function planMoment(city: string, query: string): Promise<MomentRes
 // City Right Now Narrative
 export async function getNarrative(city: string): Promise<NarrativeResponse> {
   const { data } = await api.get("/api/narrative", { params: { city } });
+  return data;
+}
+
+// Should I Go Out Tonight?
+export async function getGoOut(city: string): Promise<GoOutResponse> {
+  const { data } = await api.get("/api/goout/tonight", { params: { city } });
+  return data;
+}
+
+// Neighborhood Report Cards
+export async function getNeighborhoods(city: string): Promise<{ city: string; timestamp: string; neighborhoods: NeighborhoodGrade[] }> {
+  const { data } = await api.get("/api/neighborhoods/report", { params: { city } });
+  return data;
+}
+
+// Delta — What Changed Today
+export async function getDelta(city: string): Promise<DeltaResponse> {
+  const { data } = await api.get("/api/delta/today", { params: { city } });
+  return data;
+}
+
+// Trip Cost Estimator
+export async function estimateTripCost(payload: {
+  city: string;
+  activities: string[];
+  duration_hours: number;
+  has_ev: boolean;
+  depart_at?: string;
+}): Promise<TripCostResponse> {
+  const { data } = await api.post("/api/tripcost/estimate", payload);
   return data;
 }

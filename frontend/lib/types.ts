@@ -221,6 +221,69 @@ export interface NarrativeResponse {
   ai_generated: boolean;
 }
 
+export interface GoOutResponse {
+  city: string;
+  verdict: "yes" | "no" | "maybe";
+  score: number;
+  reason: string;
+  best_time: string;
+  domains: Record<string, string>;
+  ai_generated: boolean;
+  timestamp: string;
+}
+
+export interface NeighborhoodGrade {
+  name: string;
+  city: string;
+  lat: number;
+  lng: number;
+  overall: string;
+  overall_label: string;
+  overall_color: string;
+  grades: { parking: string; ev: string; vibe: string; air: string; transit: string };
+  metrics: { parking_occ: number; ev_wait_min: number; vibe_score: number; aqi: number; transit_crowd: number };
+}
+
+export interface DeltaMetric {
+  key: string;
+  label: string;
+  unit: string;
+  icon: string;
+  current: number;
+  previous: number;
+  change_pct: number;
+  direction: "up" | "down" | "flat";
+  sentiment: "good" | "bad" | "neutral";
+}
+
+export interface DeltaResponse {
+  city: string;
+  has_data: boolean;
+  summary?: string;
+  improved?: number;
+  worsened?: number;
+  message?: string;
+  timestamp: string;
+  metrics: DeltaMetric[];
+}
+
+export interface TripCostItem {
+  item: string;
+  cost: number;
+  note: string;
+}
+
+export interface TripCostResponse {
+  city: string;
+  activities: string[];
+  duration_hours: number;
+  estimated_total: number;
+  breakdown: TripCostItem[];
+  savings_tips: string[];
+  ai_generated: boolean;
+  timestamp: string;
+}
+
 export interface WatchlistItem {
   id: string;
   domain: string;

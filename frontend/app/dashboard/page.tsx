@@ -7,6 +7,7 @@ import StatCard from "@/components/StatCard";
 import Toast from "@/components/Toast";
 import SurgeWidget from "@/components/SurgeWidget";
 import NarrativeCard from "@/components/NarrativeCard";
+import ShareCard from "@/components/ShareCard";
 import { getOverview, getPulseScore } from "@/lib/api";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
@@ -76,9 +77,14 @@ function DashboardContent() {
                 AI-powered real-time city intelligence
               </p>
             </div>
-            <Link href="/plan" className="btn-primary text-sm flex items-center gap-2 self-start sm:self-auto">
-              ✦ Generate AI Plan
-            </Link>
+            <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+              <Link href="/goout" className="btn-ghost text-sm flex items-center gap-2">
+                🤔 Go Out?
+              </Link>
+              <Link href="/plan" className="btn-primary text-sm flex items-center gap-2">
+                ✦ Generate AI Plan
+              </Link>
+            </div>
           </div>
 
           {/* Stats Grid */}
@@ -129,10 +135,15 @@ function DashboardContent() {
         </div>
       </section>
 
-      {/* City Right Now narrative */}
+      {/* City Right Now narrative + Share */}
       <section className="px-4 pb-4">
-        <div className="max-w-6xl mx-auto">
-          <NarrativeCard city={city} />
+        <div className="max-w-6xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="md:col-span-2">
+            <NarrativeCard city={city} />
+          </div>
+          <div>
+            <ShareCard city={city} overview={overview} pulse={pulse} />
+          </div>
         </div>
       </section>
 

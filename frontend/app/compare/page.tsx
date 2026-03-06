@@ -162,6 +162,69 @@ export default function ComparePage() {
               })}
             </div>
 
+            {/* Relocate Score — persona recommendations */}
+            {(() => {
+              const personas: { label: string; icon: string; desc: string; score: (c: string) => number }[] = [
+                {
+                  label: "EV Driver",
+                  icon: "⚡",
+                  desc: "Most ports, shortest wait",
+                  score: (c) => (data.cities[c]?.ev_available_ports ?? 0) * 2 - (data.cities[c]?.ev_avg_wait_min ?? 99),
+                },
+                {
+                  label: "Remote Worker",
+                  icon: "💻",
+                  desc: "Clean air, low noise vibes",
+                  score: (c) => 200 - (data.cities[c]?.air_aqi ?? 100) + (data.cities[c]?.vibe_score ?? 50),
+                },
+                {
+                  label: "Daily Commuter",
+                  icon: "🚇",
+                  desc: "Low transit crowd, few delays",
+                  score: (c) => 200 - (data.cities[c]?.transit_crowd_pct ?? 100) - (data.cities[c]?.transit_delayed ?? 5) * 10,
+                },
+                {
+                  label: "Cyclist",
+                  icon: "🚲",
+                  desc: "Most bikes + clean air",
+                  score: (c) => (data.cities[c]?.bikes_available ?? 0) - (data.cities[c]?.air_aqi ?? 100) * 0.5,
+                },
+                {
+                  label: "Night Out",
+                  icon: "🎵",
+                  desc: "High vibe, parking available",
+                  score: (c) => (data.cities[c]?.vibe_score ?? 0) + (data.cities[c]?.parking_available ?? 0) * 0.3,
+                },
+              ];
+              return (
+                <div className="card p-4 mt-3 animate-fade-in">
+                  <h2 className="text-sm font-semibold mb-3" style={{ color: "var(--text)" }}>
+                    📍 Relocate Score — Best City For You
+                  </h2>
+                  <div className="grid grid-cols-1 gap-2">
+                    {personas.map((p) => {
+                      const best = CITIES.slice().sort((a, b) => p.score(b) - p.score(a))[0];
+                      return (
+                        <div key={p.label} className="flex items-center gap-3 px-3 py-2 rounded-xl"
+                          style={{ background: "rgba(255,255,255,0.02)", border: "1px solid var(--border)" }}>
+                          <span className="text-xl w-7 text-center">{p.icon}</span>
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold" style={{ color: "var(--text)" }}>{p.label}</p>
+                            <p className="text-[11px]" style={{ color: "var(--muted)" }}>{p.desc}</p>
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <span className="text-base">{CITY_FLAGS[best]}</span>
+                            <span className="text-xs font-bold" style={{ color: "#22c55e" }}>{best.split(" ")[0]}</span>
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full font-bold" style={{ background: "rgba(34,197,94,0.12)", color: "#22c55e" }}>Best</span>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })()}
+
             {/* Air category rows */}
             <div className="card p-4 mt-3 animate-fade-in">
               <div className="grid grid-cols-3 gap-3">

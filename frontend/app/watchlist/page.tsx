@@ -32,6 +32,21 @@ function WatchlistContent() {
   const { city, setCity } = useDetectedCity(params.get("city"));
   const [items, setItems] = useState<WatchlistItem[]>([]);
   const [alerts, setAlerts] = useState<Alert[]>([]);
+  const [notifPerm, setNotifPerm] = useState<NotificationPermission | "unsupported">("default");
+
+  useEffect(() => {
+    if (typeof window !== "undefined" && "Notification" in window) {
+      setNotifPerm(Notification.permission);
+    } else {
+      setNotifPerm("unsupported");
+    }
+  }, []);
+
+  async function requestNotifications() {
+    if (!("Notification" in window)) return;
+    const result = await Notification.requestPermission();
+    setNotifPerm(result);
+  }
 
   // Add form state
   const [domain, setDomain] = useState("parking");
@@ -106,7 +121,18 @@ function WatchlistContent() {
           }
         }
 
-        if (!cancelled) setAlerts(triggered);
+        if (!cancelled) {
+          setAlerts(triggered);
+          // Browser push notifications for newly triggered alerts
+          if (triggered.length > 0 && "Notification" in window && Notification.permission === "granted") {
+            triggered.forEach((a) => {
+              new Notification(`UrbanFlow Alert — ${a.item.city}`, {
+                body: a.message,
+                icon: "/icon.svg",
+              });
+            });
+          }
+        }
       } catch { /* silent */ }
     }
 
@@ -166,6 +192,32 @@ function WatchlistContent() {
                 {a.message}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* Notification permission banner */}
+        {notifPerm === "default" && (
+          <div className="card p-4 mb-4 flex items-center justify-between gap-3"
+            style={{ background: "rgba(59,130,246,0.06)", borderColor: "rgba(59,130,246,0.25)" }}>
+            <div>
+              <p className="text-sm font-semibold" style={{ color: "var(--text)" }}>Enable push notifications</p>
+              <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>Get instant browser alerts when thresholds are crossed</p>
+            </div>
+            <button onClick={requestNotifications} className="btn-primary text-xs px-4 py-2 rounded-lg whitespace-nowrap">
+              🔔 Enable
+            </button>
+          </div>
+        )}
+        {notifPerm === "granted" && (
+          <div className="flex items-center gap-2 mb-4 text-xs" style={{ color: "#22c55e" }}>
+            <span className="w-2 h-2 rounded-full bg-green-400" />
+            Push notifications active
+          </div>
+        )}
+        {notifPerm === "denied" && (
+          <div className="flex items-center gap-2 mb-4 text-xs" style={{ color: "var(--muted)" }}>
+            <span>🔕</span>
+            Notifications blocked — allow them in browser settings to enable alerts
           </div>
         )}
 

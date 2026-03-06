@@ -33,9 +33,13 @@ const NAV_GROUPS = [
   {
     label: "TOOLS",
     items: [
-      { href: "/compare",   label: "City Compare",    icon: "⚖" },
-      { href: "/heatmap",   label: "Heat Map",        icon: "🗺" },
-      { href: "/watchlist", label: "Watchlist",       icon: "🔔" },
+      { href: "/compare",       label: "City Compare",      icon: "⚖" },
+      { href: "/heatmap",       label: "Heat Map",          icon: "🗺" },
+      { href: "/watchlist",     label: "Watchlist",         icon: "🔔" },
+      { href: "/neighborhoods", label: "Neighborhoods",     icon: "⬡" },
+      { href: "/delta",         label: "What Changed",      icon: "📊" },
+      { href: "/goout",         label: "Go Out Tonight?",   icon: "🤔" },
+      { href: "/trip",          label: "Trip Cost",         icon: "💸" },
     ],
   },
 ];

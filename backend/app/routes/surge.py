@@ -2,12 +2,13 @@ from __future__ import annotations
 
 """
 Surge Predictor — AI-powered early warnings before parking/transit gets congested.
-Analyzes trends and alerts users to upcoming surges.
+Analyzes trends, city events, and alerts users to upcoming surges.
 """
 import json
 import logging
 import re
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -25,6 +26,65 @@ from app.models import (
 
 router = APIRouter(prefix="/api/surge", tags=["Surge"])
 logger = logging.getLogger(__name__)
+
+CITY_TIMEZONES = {
+    "San Francisco": "America/Los_Angeles",
+    "New York": "America/New_York",
+    "Austin": "America/Chicago",
+}
+
+# Synthetic recurring events per city (day_of_week 0=Mon, hour_of_day)
+CITY_EVENTS = {
+    "San Francisco": [
+        {"name": "Giants Game", "days": [2, 4, 6], "hours": range(18, 22), "impact": "high", "area": "SoMa"},
+        {"name": "Warriors Game", "days": [1, 3, 6], "hours": range(19, 23), "impact": "high", "area": "Chase Center"},
+        {"name": "Farmers Market", "days": [5, 6], "hours": range(9, 14), "impact": "medium", "area": "Ferry Building"},
+        {"name": "Tech Meetup Night", "days": [2, 3], "hours": range(18, 21), "impact": "medium", "area": "SoMa"},
+    ],
+    "New York": [
+        {"name": "Knicks/Rangers Game", "days": [1, 3, 5], "hours": range(19, 23), "impact": "high", "area": "Midtown"},
+        {"name": "Broadway Curtain", "days": [1, 2, 3, 4, 5, 6], "hours": range(19, 21), "impact": "high", "area": "Times Square"},
+        {"name": "Weekend Brunch Rush", "days": [5, 6], "hours": range(10, 14), "impact": "medium", "area": "Brooklyn"},
+        {"name": "Yankees Game", "days": [2, 4, 6], "hours": range(18, 22), "impact": "high", "area": "The Bronx"},
+    ],
+    "Austin": [
+        {"name": "UT Football Game", "days": [5, 6], "hours": range(18, 23), "impact": "high", "area": "Campus"},
+        {"name": "Live Music on 6th St", "days": [4, 5, 6], "hours": range(20, 24), "impact": "high", "area": "Downtown"},
+        {"name": "Farmers Market", "days": [5, 6], "hours": range(9, 13), "impact": "medium", "area": "Downtown"},
+        {"name": "SXSW-style Conference", "days": [0, 1, 2, 3, 4], "hours": range(9, 18), "impact": "medium", "area": "Convention Center"},
+    ],
+}
+
+
+def _detect_events(city: str) -> list[dict]:
+    """Check if any city events are currently active and return surge impacts."""
+    tz = ZoneInfo(CITY_TIMEZONES.get(city, "UTC"))
+    local_now = datetime.now(tz)
+    day = local_now.weekday()
+    hour = local_now.hour
+
+    active = []
+    for event in CITY_EVENTS.get(city, []):
+        if day in event["days"] and hour in event["hours"]:
+            active.append(event)
+    return active
+
+
+def _event_alerts(city: str) -> list[dict]:
+    """Convert active events to surge alert objects."""
+    events = _detect_events(city)
+    alerts = []
+    for ev in events:
+        severity = ev["impact"]
+        alerts.append({
+            "domain": "all",
+            "severity": severity,
+            "message": f"{ev['name']} in {ev['area']} — expect surge in parking & transit",
+            "tip": f"Arrive 30+ min early or use transit. {ev['area']} area will be congested.",
+            "predicted_peak_in_mins": 20 if severity == "high" else 40,
+            "event": ev["name"],
+        })
+    return alerts
 
 _client: anthropic.AsyncAnthropic | None = None
 
@@ -168,6 +228,9 @@ async def surge_alerts(
             latest = snaps[-1]
             transit_data.append({"route": r.name, "occupancy_level": latest.occupancy_level, "delay_minutes": latest.delay_minutes})
 
+    # Inject event-based alerts
+    event_alerts = _event_alerts(city)
+
     client = _get_client()
     if not client or (not parking_data and not ev_data and not transit_data):
         alerts = _rule_based_surge(city, parking_data, ev_data, transit_data)
@@ -175,7 +238,7 @@ async def surge_alerts(
         return {
             "city": city,
             "timestamp": datetime.utcnow().isoformat() + "Z",
-            "alerts": alerts,
+            "alerts": event_alerts + alerts,
             "causality_chains": causality_chains,
             "ai_generated": False,
         }
@@ -225,7 +288,7 @@ async def surge_alerts(
     return {
         "city": city,
         "timestamp": datetime.utcnow().isoformat() + "Z",
-        "alerts": alerts,
+        "alerts": event_alerts + alerts,
         "causality_chains": causality_chains,
         "ai_generated": True,
     }
