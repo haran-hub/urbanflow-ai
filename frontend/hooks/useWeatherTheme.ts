@@ -18,8 +18,11 @@ const CITY_COORDS: Record<string, { lat: number; lon: number; tz: string }> = {
 const _cache: Record<string, { data: WeatherData; at: number }> = {};
 const CACHE_MS = 30 * 60 * 1000; // 30 min
 
-function fallbackWeather(): WeatherData {
-  const hour = new Date().getHours();
+function fallbackWeather(city: string): WeatherData {
+  // Use city's local time, NOT browser time
+  const tz = CITY_COORDS[city]?.tz ?? "America/Chicago";
+  const hourStr = new Date().toLocaleString("en-US", { timeZone: tz, hour: "numeric", hour12: false });
+  const hour = parseInt(hourStr, 10);
   const isDay = hour >= 6 && hour < 20;
   const condition = isDay ? "partly-cloudy-day" : "clear-night";
   return {
@@ -40,7 +43,7 @@ export function useWeatherTheme(city: string): {
   useEffect(() => {
     const coords = CITY_COORDS[city];
     if (!coords) {
-      setWeather(fallbackWeather());
+      setWeather(fallbackWeather(city));
       return;
     }
 
@@ -79,7 +82,7 @@ export function useWeatherTheme(city: string): {
         setWeather(data);
       })
       .catch(() => {
-        setWeather(fallbackWeather());
+        setWeather(fallbackWeather(city));
       });
   }, [city]);
 

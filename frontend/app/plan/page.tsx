@@ -5,6 +5,7 @@ import Toast from "@/components/Toast";
 import { generateAIPlan } from "@/lib/api";
 import type { UrbanPlan } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
+import { formatCityTime } from "@/lib/city-time";
 
 const NEEDS_OPTIONS = [
   { id: "parking", label: "Parking", icon: "🅿", desc: "Find best parking" },
@@ -115,7 +116,7 @@ export default function PlanPage() {
             <div className="flex items-center justify-between">
               <div>
                 <h2 className="font-semibold" style={{ color: "var(--text)" }}>Your Optimized Plan</h2>
-                {generatedAt && <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>Generated {new Date(generatedAt).toLocaleTimeString()}</p>}
+                {generatedAt && <p className="text-xs mt-0.5" style={{ color: "var(--muted)" }}>Generated {formatCityTime(generatedAt, city)}</p>}
               </div>
               {plan.total_time_saved_mins > 0 && (
                 <div className="px-3 py-1.5 rounded-full text-xs font-medium" style={{ background: "rgba(34,197,94,0.1)", color: "#4ade80" }}>

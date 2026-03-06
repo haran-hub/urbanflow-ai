@@ -5,6 +5,7 @@ import { getCityComparison } from "@/lib/api";
 import type { CompareData } from "@/lib/types";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
+import { formatCityTime } from "@/lib/city-time";
 
 const CITIES = ["San Francisco", "New York", "Austin"] as const;
 
@@ -94,7 +95,7 @@ export default function ComparePage() {
                     🏆 Best City Right Now: {overallWinner}
                   </p>
                   <p className="text-xs" style={{ color: "var(--muted)" }}>
-                    Wins {wins[overallWinner]} of {METRICS.length} metrics · Updated {new Date(data.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                    Wins {wins[overallWinner]} of {METRICS.length} metrics · Updated {formatCityTime(data.timestamp, city)}
                   </p>
                 </div>
               </div>

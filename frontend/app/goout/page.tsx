@@ -6,6 +6,7 @@ import { getGoOut } from "@/lib/api";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { GoOutResponse } from "@/lib/types";
+import { formatCityTime } from "@/lib/city-time";
 
 const VERDICT_CONFIG = {
   yes:   { emoji: "✅", label: "Go for it!",  color: "#22c55e", bg: "rgba(34,197,94,0.08)",   border: "rgba(34,197,94,0.25)" },
@@ -121,7 +122,7 @@ function GoOutContent() {
 
             <div className="flex items-center justify-between">
               <p className="text-xs" style={{ color: "var(--muted)" }}>
-                Updated {new Date(data.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+                Updated {formatCityTime(data.timestamp, city)}
               </p>
               <button onClick={load} disabled={loading} className="btn-ghost text-xs px-3 py-1.5">
                 ↻ Refresh
