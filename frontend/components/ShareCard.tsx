@@ -55,11 +55,11 @@ export default function ShareCard({ city, overview, pulse }: Props) {
   if (!o) return null;
 
   return (
-    <div>
+    <div className="h-full flex flex-col">
       {/* Preview card */}
       <div
         ref={cardRef}
-        className="card p-5 mb-3"
+        className="card p-5 mb-3 flex-1"
         style={{
           background: "linear-gradient(135deg, rgba(59,130,246,0.08), rgba(139,92,246,0.08))",
           borderColor: "rgba(139,92,246,0.2)",
