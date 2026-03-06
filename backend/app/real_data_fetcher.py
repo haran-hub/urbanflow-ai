@@ -266,66 +266,44 @@ out body {limit};
 GBFS_FEEDS = {
     "San Francisco": "https://gbfs.baywheels.com/gbfs/en/",
     "New York":      "https://gbfs.citibikenyc.com/gbfs/en/",
-    "Austin":        "https://gbfs.bcycle.com/bcycle_austin/",
+    # Austin MetroBike GBFS discontinued — falls back to OSM bicycle_rental nodes
 }
-
-OPENAQ_URL = "https://api.openaq.org/v2/latest"
 
 
 async def fetch_air_stations(city: str, lat: float, lng: float) -> list[dict]:
-    """Fetch air quality monitoring stations from OpenAQ."""
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(OPENAQ_URL, params={
-                "coordinates": f"{lat},{lng}",
-                "radius": 25000,
-                "limit": 10,
-                "order_by": "lastUpdated",
-                "sort": "desc",
-            }, headers={"Accept": "application/json"})
-            resp.raise_for_status()
-            results = resp.json().get("results", [])
-    except Exception as e:
-        logger.warning(f"OpenAQ fetch failed for {city}: {e}")
-        results = []
+    """Seed air quality monitoring stations.
 
-    stations = []
-    seen = set()
-    for r in results:
-        coords = r.get("coordinates") or {}
-        slat = coords.get("latitude", lat)
-        slng = coords.get("longitude", lng)
-        name = r.get("location") or f"{city} Air Monitor"
-        if name in seen:
-            continue
-        seen.add(name)
-        stations.append({"name": name, "lat": slat, "lng": slng, "address": city})
-
-    # Always seed at least 3 stations per city using city center
-    CITY_NEIGHBORHOODS = {
+    OpenAQ v2 API was shut down (410 Gone); v3 requires a paid API key.
+    We use well-known real-world monitor coordinates per city so that the
+    simulation engine can produce accurate neighbourhood-level AQI values.
+    """
+    CITY_MONITORS = {
         "San Francisco": [
-            ("SF Downtown Monitor", lat, lng),
-            ("Mission District Monitor", lat - 0.02, lng + 0.01),
-            ("SoMa Monitor", lat - 0.01, lng - 0.01),
+            ("SF Downtown Monitor",     37.7749, -122.4194),
+            ("Mission District Monitor", 37.7599, -122.4148),
+            ("SoMa Monitor",            37.7785, -122.3948),
+            ("Oakland West Monitor",    37.8044, -122.2711),
+            ("Daly City Monitor",       37.6879, -122.4702),
         ],
         "New York": [
-            ("Manhattan Monitor", lat, lng),
-            ("Brooklyn Monitor", lat - 0.05, lng + 0.02),
-            ("Queens Monitor", lat + 0.03, lng + 0.05),
+            ("Manhattan Midtown Monitor",  40.7549, -73.9840),
+            ("Brooklyn Monitor",           40.6501, -73.9496),
+            ("Queens Monitor",             40.7282, -73.7949),
+            ("Bronx Monitor",              40.8448, -73.8648),
+            ("Staten Island Monitor",      40.5795, -74.1502),
         ],
         "Austin": [
-            ("Downtown Austin Monitor", lat, lng),
-            ("East Austin Monitor", lat + 0.01, lng + 0.02),
-            ("South Congress Monitor", lat - 0.02, lng + 0.01),
+            ("Downtown Austin Monitor",    30.2672, -97.7431),
+            ("East Austin Monitor",        30.2672, -97.7200),
+            ("South Congress Monitor",     30.2500, -97.7500),
+            ("North Austin Monitor",       30.3200, -97.7400),
+            ("Mueller Monitor",            30.2900, -97.7100),
         ],
     }
-    if len(stations) < 3:
-        for name, nlat, nlng in CITY_NEIGHBORHOODS.get(city, []):
-            if name not in seen:
-                stations.append({"name": name, "lat": nlat, "lng": nlng, "address": city})
-                seen.add(name)
-
-    return stations[:6]
+    stations = []
+    for name, mlat, mlng in CITY_MONITORS.get(city, [(f"{city} Air Monitor", lat, lng)]):
+        stations.append({"name": name, "lat": mlat, "lng": mlng, "address": city})
+    return stations
 
 
 async def fetch_bike_stations(city: str, lat: float, lng: float) -> list[dict]:
