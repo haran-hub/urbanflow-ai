@@ -79,7 +79,7 @@ function ConciergeContent() {
     rec.interimResults = false;
     rec.onstart = () => setListening(true);
     rec.onend = () => setListening(false);
-    rec.onresult = (e: SpeechRecognitionEvent) => {
+    rec.onresult = (e: SREvent) => {
       const transcript = e.results[0][0].transcript;
       setInput(transcript);
       // Auto-submit after short delay so user sees transcript
