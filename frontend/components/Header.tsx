@@ -4,6 +4,11 @@ import { usePathname } from "next/navigation";
 import { useState, useEffect, useRef } from "react";
 import { useWeatherTheme } from "@/hooks/useWeatherTheme";
 import WeatherBackground from "@/components/WeatherBackground";
+import { getDelta } from "@/lib/api";
+
+const SENTIMENT_COLOR = { good: "#22c55e", bad: "#ef4444", neutral: "#64748b" } as const;
+
+interface TickerItem { icon: string; text: string; sentiment: "good" | "bad" | "neutral"; }
 
 const CITIES = ["San Francisco", "New York", "Austin"];
 
@@ -59,6 +64,21 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
   const [mobileOpen, setMobileOpen] = useState(false);
   const { weather, theme } = useWeatherTheme(city);
   const navRef = useRef<HTMLElement>(null);
+  const [tickerItems, setTickerItems] = useState<TickerItem[]>([]);
+
+  useEffect(() => {
+    getDelta(city).then((d) => {
+      if (!d.has_data || !d.metrics?.length) return;
+      setTickerItems(d.metrics.map((m: {
+        icon: string; label: string; current: number; unit: string;
+        change_pct: number; direction: string; sentiment: string;
+      }) => {
+        const arrow = m.direction === "up" ? "↑" : m.direction === "down" ? "↓" : "→";
+        const changeStr = m.change_pct !== 0 ? ` ${arrow}${Math.abs(m.change_pct)}%` : "";
+        return { icon: m.icon, text: `${m.label}: ${m.current}${m.unit}${changeStr}`, sentiment: m.sentiment as "good" | "bad" | "neutral" };
+      }));
+    }).catch(() => {});
+  }, [city]);
 
   // Scroll active nav item into view whenever route changes
   useEffect(() => {
@@ -236,65 +256,79 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
       </aside>
 
       {/* ── Desktop top bar (right of sidebar) ─────────────────────────────── */}
-      <header
-        className="hidden md:flex items-center fixed top-0 left-[220px] right-0 h-14 z-40 px-6 border-b border-[var(--border)]"
+      <div
+        className="hidden md:flex flex-col fixed top-0 left-[220px] right-0 z-40 border-b border-[var(--border)]"
         style={{ background: "rgba(8,8,14,0.95)", backdropFilter: "blur(16px)" }}
       >
         {/* Gradient accent line */}
-        <div
-          style={{
-            position: "absolute",
-            top: 0,
-            left: 0,
-            right: 0,
-            height: 2,
-            background: gradientBar,
-            transition: "background 1.2s ease",
-          }}
-        />
+        <div style={{ height: 2, background: gradientBar, transition: "background 1.2s ease", flexShrink: 0 }} />
 
-        {/* Left: live status */}
-        <div className="flex-1">
-          {liveStatus && (
-            <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
-              <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
-              {liveStatus}
-            </div>
-          )}
-        </div>
-
-        {/* Right: weather badge + city selector */}
-        <div className="flex items-center gap-3">
-          {weather && (
+        {/* Row 1: scrolling live ticker */}
+        {tickerItems.length > 0 && (() => {
+          const repeated = [...tickerItems, ...tickerItems, ...tickerItems];
+          return (
             <div
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
-              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)" }}
+              className="overflow-hidden relative"
+              style={{ height: 32, borderBottom: "1px solid var(--border)", background: "rgba(255,255,255,0.015)" }}
             >
-              <span style={{ fontSize: 15 }}>{weather.icon}</span>
-              <span style={{ color: "var(--muted)" }}>{weather.description}</span>
-              <span className="font-semibold" style={{ color: "var(--accent)" }}>
-                {Math.round(weather.temp_c * 9 / 5 + 32)}°F
-              </span>
+              <div className="absolute left-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
+                style={{ background: "linear-gradient(to right, rgba(8,8,14,0.95), transparent)" }} />
+              <div className="absolute right-0 top-0 bottom-0 w-10 z-10 pointer-events-none"
+                style={{ background: "linear-gradient(to left, rgba(8,8,14,0.95), transparent)" }} />
+              <div
+                className="flex items-center h-full"
+                style={{ animation: "ticker-scroll 40s linear infinite", whiteSpace: "nowrap", width: "max-content" }}
+              >
+                {repeated.map((item, i) => (
+                  <span key={i} className="flex items-center gap-1.5 px-5 text-[11px] font-medium">
+                    <span>{item.icon}</span>
+                    <span style={{ color: SENTIMENT_COLOR[item.sentiment] }}>{item.text}</span>
+                    <span className="opacity-20 mx-1" style={{ color: "var(--muted)" }}>·</span>
+                  </span>
+                ))}
+              </div>
+              <style>{`@keyframes ticker-scroll{0%{transform:translateX(0)}100%{transform:translateX(-33.333%)}}`}</style>
             </div>
-          )}
-          <div className="flex items-center gap-2">
-            <span className="text-[10px] font-bold tracking-widest" style={{ color: "var(--muted)", opacity: 0.45 }}>📍</span>
-            <select
-              value={city}
-              onChange={(e) => onCityChange(e.target.value)}
-              className="text-xs px-3 py-1.5 rounded-lg"
-              style={{
-                background: "var(--card2)",
-                border: "1px solid var(--border)",
-                color: "var(--text)",
-                minWidth: 130,
-              }}
-            >
-              {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
+          );
+        })()}
+
+        {/* Row 2: live status (left) + weather + city selector (right) */}
+        <div className="flex items-center px-6 h-12">
+          <div className="flex-1">
+            {liveStatus && (
+              <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
+                <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
+                {liveStatus}
+              </div>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            {weather && (
+              <div
+                className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)" }}
+              >
+                <span style={{ fontSize: 15 }}>{weather.icon}</span>
+                <span style={{ color: "var(--muted)" }}>{weather.description}</span>
+                <span className="font-semibold" style={{ color: "var(--accent)" }}>
+                  {Math.round(weather.temp_c * 9 / 5 + 32)}°F
+                </span>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="text-[10px] font-bold tracking-widest" style={{ color: "var(--muted)", opacity: 0.45 }}>📍</span>
+              <select
+                value={city}
+                onChange={(e) => onCityChange(e.target.value)}
+                className="text-xs px-3 py-1.5 rounded-lg"
+                style={{ background: "var(--card2)", border: "1px solid var(--border)", color: "var(--text)", minWidth: 130 }}
+              >
+                {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Weather particle overlay */}
       {weather && theme && (

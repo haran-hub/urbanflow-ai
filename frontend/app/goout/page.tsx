@@ -58,7 +58,7 @@ function GoOutContent() {
   const cfg = data ? VERDICT_CONFIG[data.verdict] : null;
 
   return (
-    <main className="min-h-screen pt-14 md:pt-14 md:pl-[220px]" style={{ background: "var(--bg)" }}>
+    <main className="min-h-screen pt-14 md:pt-[82px] md:pl-[220px]" style={{ background: "var(--bg)" }}>
       <Header city={city} onCityChange={setCity} />
 
       <div className="max-w-2xl mx-auto px-4 py-10">

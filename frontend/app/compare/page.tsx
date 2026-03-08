@@ -62,7 +62,7 @@ export default function ComparePage() {
   const overallWinner = data ? Object.entries(wins).sort((a, b) => b[1] - a[1])[0][0] : null;
 
   return (
-    <main className="min-h-screen pt-14 md:pt-14 md:pl-[220px]" style={{ background: "var(--bg)" }}>
+    <main className="min-h-screen pt-14 md:pt-[82px] md:pl-[220px]" style={{ background: "var(--bg)" }}>
       <Header city={city} onCityChange={setCity} />
 
       <div className="max-w-5xl mx-auto px-4 py-8">

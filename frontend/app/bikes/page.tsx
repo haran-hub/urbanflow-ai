@@ -63,7 +63,7 @@ function BikesContent() {
     s.total_docks > 0 ? Math.round((s.available_docks / s.total_docks) * 100) : 0;
 
   return (
-    <main className="min-h-screen pt-14 md:pt-14 md:pl-[220px]" style={{ background: "var(--bg)" }}>
+    <main className="min-h-screen pt-14 md:pt-[82px] md:pl-[220px]" style={{ background: "var(--bg)" }}>
       <Header city={city} onCityChange={setCity} />
 
       <div className="max-w-6xl mx-auto px-4 py-8">

@@ -109,7 +109,7 @@ function DashboardContent() {
   const o = overview;
 
   return (
-    <main className="min-h-screen pt-14 md:pt-14 md:pl-[220px]" style={{ background: "var(--bg)" }}>
+    <main className="min-h-screen pt-14 md:pt-[82px] md:pl-[220px]" style={{ background: "var(--bg)" }}>
       <Header city={city} onCityChange={setCity} liveStatus="Live · refreshes on every visit" />
       <LiveTicker city={city} />
 

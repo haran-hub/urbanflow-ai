@@ -124,7 +124,7 @@ function ConciergeContent() {
   }
 
   return (
-    <main className="min-h-screen pt-14 md:pt-14 md:pl-[220px] flex flex-col" style={{ background: "var(--bg)" }}>
+    <main className="min-h-screen pt-14 md:pt-[82px] md:pl-[220px] flex flex-col" style={{ background: "var(--bg)" }}>
       <Header city={city} onCityChange={setCity} />
 
       <div className="flex-1 flex flex-col max-w-3xl w-full mx-auto px-4 py-8">
