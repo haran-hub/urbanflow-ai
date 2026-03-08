@@ -108,10 +108,10 @@ function PulseContent() {
 
         {loading ? (
           <div className="flex flex-col items-center gap-8">
-            <div className="w-[220px] h-[220px] rounded-full animate-pulse" style={{ background: "var(--card2)" }} />
+            <div className="w-[220px] h-[220px] rounded-full skeleton" />
             <div className="grid grid-cols-2 md:grid-cols-4 gap-3 w-full">
               {[...Array(8)].map((_, i) => (
-                <div key={i} className="card p-4 h-24 animate-pulse" style={{ background: "var(--card2)" }} />
+                <div key={i} className="card p-4 h-24 skeleton" />
               ))}
             </div>
           </div>

@@ -92,7 +92,7 @@ function TransitContent() {
 
         {loading ? (
           <div className="space-y-4">
-            {[...Array(4)].map((_, i) => <div key={i} className="card p-5 h-36 animate-pulse" style={{ background: "var(--card2)" }} />)}
+            {[...Array(4)].map((_, i) => <div key={i} className="card p-5 h-36 skeleton" />)}
           </div>
         ) : (
           <div className="space-y-4">

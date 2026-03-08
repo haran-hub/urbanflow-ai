@@ -165,7 +165,7 @@ function HeatmapContent() {
 
         {/* Map */}
         {loading ? (
-          <div className="rounded-2xl animate-pulse" style={{ height: 600, background: "var(--card2)", border: "1px solid var(--border)" }} />
+          <div className="rounded-2xl skeleton" style={{ height: 600, background: "var(--card2)", border: "1px solid var(--border)" }} />
         ) : mode3D ? (
           <HeatmapMap3D
             city={city}

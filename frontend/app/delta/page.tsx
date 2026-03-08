@@ -85,7 +85,7 @@ function DeltaContent() {
         {loading ? (
           <div className="flex flex-col gap-3">
             {[1, 2, 3, 4, 5, 6].map((i) => (
-              <div key={i} className="card px-4 py-4 animate-pulse flex items-center gap-4">
+              <div key={i} className="card px-4 py-4 skeleton flex items-center gap-4">
                 <div className="w-8 h-8 rounded" style={{ background: "rgba(255,255,255,0.08)" }} />
                 <div className="flex-1">
                   <div className="h-3 w-32 rounded mb-2" style={{ background: "rgba(255,255,255,0.07)" }} />

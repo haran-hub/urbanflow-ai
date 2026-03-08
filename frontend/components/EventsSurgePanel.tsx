@@ -39,8 +39,9 @@ export default function EventsSurgePanel({ city }: { city: string }) {
 
   if (loading) {
     return (
-      <div className="card p-4 animate-pulse" style={{ minHeight: 80 }}>
-        <div className="h-4 rounded" style={{ background: "var(--card2)", width: "40%" }} />
+      <div className="card p-4 flex flex-col gap-3" style={{ minHeight: 80 }}>
+        <div className="skeleton h-4 rounded" style={{ width: "40%" }} />
+        <div className="skeleton h-3 rounded" style={{ width: "70%" }} />
       </div>
     );
   }

@@ -72,7 +72,7 @@ function GoOutContent() {
         </div>
 
         {loading ? (
-          <div className="card p-8 animate-pulse text-center" style={{ background: "var(--card2)" }}>
+          <div className="card p-8 skeleton text-center" style={{ background: "var(--card2)" }}>
             <div className="w-28 h-28 rounded-full mx-auto mb-4" style={{ background: "rgba(255,255,255,0.07)" }} />
             <div className="h-5 w-40 rounded mx-auto mb-3" style={{ background: "rgba(255,255,255,0.07)" }} />
             <div className="h-3 w-64 rounded mx-auto" style={{ background: "rgba(255,255,255,0.05)" }} />

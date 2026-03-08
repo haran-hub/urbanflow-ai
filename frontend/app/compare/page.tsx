@@ -78,7 +78,7 @@ export default function ComparePage() {
         {loading ? (
           <div className="space-y-3">
             {[...Array(9)].map((_, i) => (
-              <div key={i} className="card p-4 h-14 animate-pulse" style={{ background: "var(--card2)" }} />
+              <div key={i} className="card p-4 h-14 skeleton" />
             ))}
           </div>
         ) : data ? (

@@ -46,11 +46,11 @@ function BriefingContent() {
 
         {loading ? (
           <div className="flex flex-col gap-4">
-            <div className="card p-6 animate-pulse" style={{ background: "var(--card2)" }}>
-              <div className="h-4 w-32 rounded mb-4" style={{ background: "rgba(255,255,255,0.07)" }} />
-              <div className="h-4 w-full rounded mb-2" style={{ background: "rgba(255,255,255,0.06)" }} />
-              <div className="h-4 w-5/6 rounded mb-2" style={{ background: "rgba(255,255,255,0.05)" }} />
-              <div className="h-4 w-4/5 rounded" style={{ background: "rgba(255,255,255,0.04)" }} />
+            <div className="card p-6 flex flex-col gap-3">
+              <div className="skeleton h-4 w-32 rounded" />
+              <div className="skeleton h-4 w-full rounded" />
+              <div className="skeleton h-4 rounded" style={{ width: "83%" }} />
+              <div className="skeleton h-4 rounded" style={{ width: "66%" }} />
             </div>
           </div>
         ) : data ? (

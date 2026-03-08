@@ -173,7 +173,12 @@ function DashboardContent() {
           {loading ? (
             <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
               {[...Array(4)].map((_, i) => (
-                <div key={i} className="card p-5 h-32 animate-pulse" style={{ background: "var(--card2)" }} />
+                <div key={i} className="card p-5 flex flex-col gap-3" style={{ minHeight: 128 }}>
+                  <div className="skeleton rounded-xl" style={{ width: 40, height: 40 }} />
+                  <div className="skeleton rounded" style={{ width: "55%", height: 28 }} />
+                  <div className="skeleton rounded" style={{ width: "80%", height: 13 }} />
+                  <div className="skeleton rounded" style={{ width: "45%", height: 11 }} />
+                </div>
               ))}
             </div>
           ) : (

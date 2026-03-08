@@ -68,18 +68,18 @@ export default function NarrativeCard({ city }: Props) {
 
   if (loading) {
     return (
-      <div className="card p-4 h-full animate-pulse flex flex-col gap-3" style={{ background: "var(--card)" }}>
-        <div className="h-3 w-24 rounded" style={{ background: "rgba(255,255,255,0.06)" }} />
-        <div className="h-3 w-full rounded" style={{ background: "rgba(255,255,255,0.04)" }} />
-        <div className="h-3 w-4/5 rounded" style={{ background: "rgba(255,255,255,0.04)" }} />
+      <div className="card p-4 h-full flex flex-col gap-3">
+        <div className="skeleton h-3 w-24 rounded" />
+        <div className="skeleton h-3 w-full rounded" />
+        <div className="skeleton h-3 rounded" style={{ width: "80%" }} />
         <div className="flex gap-1.5 mt-1">
-          {[...Array(4)].map((_, i) => <div key={i} className="h-5 w-16 rounded-full" style={{ background: "rgba(255,255,255,0.05)" }} />)}
+          {[...Array(4)].map((_, i) => <div key={i} className="skeleton h-5 w-16 rounded-full" />)}
         </div>
-        <div className="h-px my-1" style={{ background: "rgba(255,255,255,0.06)" }} />
+        <div className="skeleton h-px my-1 rounded" />
         {[...Array(3)].map((_, i) => (
           <div key={i} className="flex items-center gap-2">
-            <div className="w-5 h-5 rounded" style={{ background: "rgba(255,255,255,0.05)" }} />
-            <div className="h-3 rounded flex-1" style={{ background: "rgba(255,255,255,0.04)" }} />
+            <div className="skeleton w-5 h-5 rounded" />
+            <div className="skeleton h-3 rounded flex-1" />
           </div>
         ))}
       </div>

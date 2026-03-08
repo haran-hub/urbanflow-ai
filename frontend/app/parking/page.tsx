@@ -172,7 +172,7 @@ function ParkingContent() {
         {loading ? (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {[...Array(6)].map((_, i) => (
-              <div key={i} className="card p-5 h-40 animate-pulse" style={{ background: "var(--card2)" }} />
+              <div key={i} className="card p-5 h-40 skeleton" />
             ))}
           </div>
         ) : viewMode === "map" ? (

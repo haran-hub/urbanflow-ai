@@ -109,7 +109,7 @@ function ReportsContent() {
         {/* Map */}
         <div className="mb-6">
           {loading ? (
-            <div className="rounded-2xl animate-pulse" style={{ height: 400, background: "var(--card2)", border: "1px solid var(--border)" }} />
+            <div className="rounded-2xl skeleton" style={{ height: 400, background: "var(--card2)", border: "1px solid var(--border)" }} />
           ) : (
             <ReportsMap city={city} reports={reports} onMapClick={handleMapClick} />
           )}

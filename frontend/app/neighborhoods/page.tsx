@@ -246,7 +246,7 @@ function NeighborhoodsContent() {
         {loading ? (
           <div className="flex flex-col gap-3">
             {[1, 2, 3, 4, 5].map((i) => (
-              <div key={i} className="card p-5 animate-pulse" style={{ background: "var(--card2)" }}>
+              <div key={i} className="card p-5 skeleton">
                 <div className="h-4 w-36 rounded mb-2" style={{ background: "rgba(255,255,255,0.07)" }} />
                 <div className="h-3 w-full rounded" style={{ background: "rgba(255,255,255,0.05)" }} />
               </div>

@@ -56,9 +56,9 @@ export default function SurgeWidget({ city }: Props) {
 
   if (loading) {
     return (
-      <div className="card p-4 animate-pulse" style={{ background: "var(--card2)" }}>
-        <div className="h-4 w-32 rounded mb-3" style={{ background: "rgba(255,255,255,0.08)" }} />
-        <div className="h-16 rounded" style={{ background: "rgba(255,255,255,0.05)" }} />
+      <div className="card p-4 flex flex-col gap-3">
+        <div className="skeleton h-4 w-32 rounded" />
+        <div className="skeleton h-16 rounded" />
       </div>
     );
   }

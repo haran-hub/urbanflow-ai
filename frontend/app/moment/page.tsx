@@ -134,7 +134,7 @@ function MomentContent() {
         {loading && (
           <div className="flex flex-col gap-3 mt-6">
             {[1, 2, 3].map((i) => (
-              <div key={i} className="card p-4 h-20 animate-pulse" style={{ background: "var(--card2)" }} />
+              <div key={i} className="card p-4 h-20 skeleton" />
             ))}
           </div>
         )}
