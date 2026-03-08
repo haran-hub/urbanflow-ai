@@ -1,7 +1,7 @@
 "use client";
 import { useMemo } from "react";
 import DeckGL from "@deck.gl/react";
-import { HexagonLayer } from "@deck.gl/layers";
+import { HexagonLayer } from "@deck.gl/aggregation-layers";
 import { Map } from "react-map-gl/maplibre";
 import type { ParkingZone, EVStation, BikeStation } from "@/lib/types";
 

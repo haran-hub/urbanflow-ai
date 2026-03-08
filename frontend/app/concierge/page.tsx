@@ -6,11 +6,22 @@ import { askConcierge } from "@/lib/api";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { formatCityTime } from "@/lib/city-time";
 
-// Extend window type for SpeechRecognition
+// Speech API types (not in all TS DOM configs)
+interface SREvent extends Event {
+  results: { [i: number]: { [i: number]: { transcript: string } } };
+}
+interface SRInstance {
+  lang: string;
+  interimResults: boolean;
+  onstart: (() => void) | null;
+  onend: (() => void) | null;
+  onresult: ((e: SREvent) => void) | null;
+  start(): void;
+}
 declare global {
   interface Window {
-    SpeechRecognition: new () => SpeechRecognition;
-    webkitSpeechRecognition: new () => SpeechRecognition;
+    SpeechRecognition: new () => SRInstance;
+    webkitSpeechRecognition: new () => SRInstance;
   }
 }
 
@@ -43,7 +54,7 @@ function ConciergeContent() {
   const [loading, setLoading] = useState(false);
   const [listening, setListening] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SRInstance | null>(null);
 
   // Update greeting when city changes
   useEffect(() => {
