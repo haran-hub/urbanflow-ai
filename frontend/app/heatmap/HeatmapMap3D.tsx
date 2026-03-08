@@ -2,7 +2,7 @@
 import { useMemo } from "react";
 import DeckGL from "@deck.gl/react";
 import { HexagonLayer } from "@deck.gl/aggregation-layers";
-import { Map } from "react-map-gl/maplibre";
+import Map from "react-map-gl/maplibre";
 import type { ParkingZone, EVStation, BikeStation } from "@/lib/types";
 
 const CITY_CENTERS: Record<string, { longitude: number; latitude: number; zoom: number }> = {
@@ -43,7 +43,6 @@ export default function HeatmapMap3D({ city, category, parking, ev, bikes }: Pro
           weight: s.total_ports > 0 ? 1 - (s.available_ports ?? 0) / s.total_ports : 0,
         }));
     }
-    // bikes
     return bikes
       .filter((b) => b.lat && b.lng)
       .map((b) => ({
@@ -53,7 +52,7 @@ export default function HeatmapMap3D({ city, category, parking, ev, bikes }: Pro
       }));
   }, [category, parking, ev, bikes]);
 
-  const COLOR_RANGE: [number, number, number, number][] = [
+  const COLOR_RANGE = [
     [34, 197, 94, 200],
     [132, 225, 188, 200],
     [250, 204, 21, 200],
@@ -62,12 +61,19 @@ export default function HeatmapMap3D({ city, category, parking, ev, bikes }: Pro
     [185, 28, 28, 220],
   ];
 
-  const layer = new HexagonLayer<Point>({
+  const LABEL: Record<string, string> = {
+    parking: "Parking occupancy",
+    ev: "EV demand",
+    bikes: "Bike demand",
+  };
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const layer = new (HexagonLayer as any)({
     id: "hexagon-density",
     data: points,
-    getPosition: (d) => [d.lng, d.lat],
-    getElevationWeight: (d) => d.weight,
-    getColorWeight: (d) => d.weight,
+    getPosition: (d: Point) => [d.lng, d.lat],
+    getElevationWeight: (d: Point) => d.weight,
+    getColorWeight: (d: Point) => d.weight,
     radius: 200,
     elevationScale: 30,
     extruded: true,
@@ -77,17 +83,11 @@ export default function HeatmapMap3D({ city, category, parking, ev, bikes }: Pro
     upperPercentile: 100,
   });
 
-  const LABEL: Record<string, string> = {
-    parking: "Parking occupancy",
-    ev: "EV demand",
-    bikes: "Bike demand",
-  };
-
   return (
     <div style={{ position: "relative", height: 600, borderRadius: 16, overflow: "hidden", border: "1px solid rgba(255,255,255,0.08)" }}>
       <DeckGL
         initialViewState={viewState}
-        controller
+        controller={true}
         layers={[layer]}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         getTooltip={({ object }: any) =>
@@ -108,7 +108,6 @@ export default function HeatmapMap3D({ city, category, parking, ev, bikes }: Pro
         />
       </DeckGL>
 
-      {/* Legend */}
       <div style={{
         position: "absolute",
         bottom: 16,

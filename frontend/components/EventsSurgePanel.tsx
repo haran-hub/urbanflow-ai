@@ -8,7 +8,7 @@ interface CityEvent {
   date: string;
   time: string;
   url: string;
-  impact: "HIGH" | "MED" | "LOW";
+  impact: string;
   genre: string;
 }
 
