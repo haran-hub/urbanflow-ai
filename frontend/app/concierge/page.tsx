@@ -6,6 +6,14 @@ import { askConcierge } from "@/lib/api";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { formatCityTime } from "@/lib/city-time";
 
+// Extend window type for SpeechRecognition
+declare global {
+  interface Window {
+    SpeechRecognition: new () => SpeechRecognition;
+    webkitSpeechRecognition: new () => SpeechRecognition;
+  }
+}
+
 interface Message {
   role: "user" | "assistant";
   text: string;
@@ -33,7 +41,9 @@ function ConciergeContent() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [listening, setListening] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
 
   // Update greeting when city changes
   useEffect(() => {
@@ -50,6 +60,32 @@ function ConciergeContent() {
     }
   }, [messages]);
 
+  function startListening() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return;
+    const rec = new SR();
+    rec.lang = "en-US";
+    rec.interimResults = false;
+    rec.onstart = () => setListening(true);
+    rec.onend = () => setListening(false);
+    rec.onresult = (e: SpeechRecognitionEvent) => {
+      const transcript = e.results[0][0].transcript;
+      setInput(transcript);
+      // Auto-submit after short delay so user sees transcript
+      setTimeout(() => send(transcript), 400);
+    };
+    rec.start();
+    recognitionRef.current = rec;
+  }
+
+  function speakResponse(text: string) {
+    if (!window.speechSynthesis) return;
+    window.speechSynthesis.cancel();
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 1.05;
+    window.speechSynthesis.speak(utterance);
+  }
+
   async function send(question: string) {
     if (!question.trim() || loading) return;
     setInput("");
@@ -64,6 +100,7 @@ function ConciergeContent() {
         .map((m) => ({ role: m.role, content: m.text }));
       const res = await askConcierge(question, city, history);
       setMessages((prev) => [...prev, { role: "assistant", text: res.answer, ts: new Date() }]);
+      speakResponse(res.answer);
     } catch {
       setMessages((prev) => [...prev, {
         role: "assistant",
@@ -177,6 +214,20 @@ function ConciergeContent() {
             disabled={loading}
           />
           <button
+            onClick={startListening}
+            disabled={loading || listening}
+            title="Speak your question"
+            className="px-3 py-3 rounded-xl text-lg transition-all"
+            style={{
+              background: listening ? "rgba(239,68,68,0.15)" : "var(--card)",
+              border: `1px solid ${listening ? "rgba(239,68,68,0.5)" : "var(--border)"}`,
+              color: listening ? "#ef4444" : "var(--muted)",
+              animation: listening ? "pulse 1s infinite" : "none",
+            }}
+          >
+            🎙
+          </button>
+          <button
             onClick={() => send(input)}
             disabled={!input.trim() || loading}
             className="btn-primary px-4 py-3 rounded-xl text-sm"
@@ -184,6 +235,11 @@ function ConciergeContent() {
             Send
           </button>
         </div>
+        {listening && (
+          <p className="text-xs text-center mt-2" style={{ color: "#ef4444" }}>
+            Listening… speak now
+          </p>
+        )}
       </div>
     </main>
   );

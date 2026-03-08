@@ -9,3 +9,4 @@ httpx>=0.28.0
 pydantic>=2.11.0
 pydantic-settings>=2.6.1
 tzdata>=2024.1
+resend>=2.0.0

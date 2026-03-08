@@ -8,6 +8,9 @@ import Toast from "@/components/Toast";
 import SurgeWidget from "@/components/SurgeWidget";
 import NarrativeCard from "@/components/NarrativeCard";
 import ShareCard from "@/components/ShareCard";
+import CityScoreRing from "@/components/CityScoreRing";
+import DashboardPrefs, { useDashboardPrefs } from "@/components/DashboardPrefs";
+import EventsSurgePanel from "@/components/EventsSurgePanel";
 import { getOverview, getPulseScore, getMiniTrends } from "@/lib/api";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
@@ -33,6 +36,13 @@ function DashboardContent() {
   const [sparklines, setSparklines] = useState<{
     parking_occ: number[]; ev_wait: number[]; transit_crowd: number[]; aqi: number[];
   } | null>(null);
+  const [alertsEnabled, setAlertsEnabled] = useState(false);
+  const [prefs, setPrefs] = useDashboardPrefs();
+
+  // Load alertsEnabled from localStorage
+  useEffect(() => {
+    setAlertsEnabled(localStorage.getItem("urbanflow-alerts") === "1");
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -54,11 +64,41 @@ function DashboardContent() {
     getPulseScore(cityRef.current).then(setPulse).catch(() => {});
   });
 
+  const alertsRef = useRef(alertsEnabled);
+  alertsRef.current = alertsEnabled;
+
   useWebSocket(city, () => {
-    getOverview(cityRef.current).then(setOverview).catch(() => {});
+    getOverview(cityRef.current).then((data) => {
+      setOverview(data);
+      // Push notifications for anomalies
+      if (alertsRef.current && "Notification" in window && Notification.permission === "granted") {
+        if (data.parking.occupancy_pct > 90) {
+          new Notification("UrbanFlow Alert", {
+            body: `${cityRef.current}: Parking 90%+ full — find alternatives now`,
+            icon: "/icon.svg",
+          });
+        }
+        if (data.ev_charging.avg_wait_minutes > 30) {
+          new Notification("UrbanFlow Alert", {
+            body: `${cityRef.current}: EV wait ${data.ev_charging.avg_wait_minutes}min — try another station`,
+            icon: "/icon.svg",
+          });
+        }
+      }
+    }).catch(() => {});
     getPulseScore(cityRef.current).then(setPulse).catch(() => {});
     setToast("Live update received");
   });
+
+  async function enableAlerts() {
+    if (!("Notification" in window)) return;
+    const perm = await Notification.requestPermission();
+    if (perm === "granted") {
+      setAlertsEnabled(true);
+      localStorage.setItem("urbanflow-alerts", "1");
+      setToast("Alerts enabled — you'll be notified of anomalies");
+    }
+  }
 
   const o = overview;
 
@@ -70,22 +110,48 @@ function DashboardContent() {
       {/* Hero */}
       <section className="pt-12 pb-8 px-4">
         <div className="max-w-6xl mx-auto">
-          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-8">
-            <div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: o ? RUSH_COLOR[o.rush_status] || "#3b82f6" : "#64748b" }} />
-                <span className="text-xs font-medium" style={{ color: "var(--muted)" }}>
-                  {o?.rush_status ?? "Loading..."}
-                </span>
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-8">
+            {/* Left: Score ring + title */}
+            <div className="flex items-center gap-6">
+              <CityScoreRing
+                score={pulse?.pulse_score ?? null}
+                color={pulse?.color}
+                label={pulse?.label}
+                size={100}
+              />
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full animate-pulse" style={{ background: o ? RUSH_COLOR[o.rush_status] || "#3b82f6" : "#64748b" }} />
+                  <span className="text-xs font-medium" style={{ color: "var(--muted)" }}>
+                    {o?.rush_status ?? "Loading..."}
+                  </span>
+                </div>
+                <h1 className="text-3xl font-bold" style={{ color: "var(--text)" }}>
+                  {city} <span style={{ color: "var(--accent)" }}>Overview</span>
+                </h1>
+                <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
+                  AI-powered real-time city intelligence
+                </p>
               </div>
-              <h1 className="text-3xl font-bold" style={{ color: "var(--text)" }}>
-                {city} <span style={{ color: "var(--accent)" }}>Overview</span>
-              </h1>
-              <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-                AI-powered real-time city intelligence
-              </p>
             </div>
+
+            {/* Right: action buttons + prefs */}
             <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+              {!alertsEnabled && (
+                <button
+                  onClick={enableAlerts}
+                  className="btn-ghost text-sm flex items-center gap-1.5"
+                  title="Enable browser push notifications"
+                >
+                  🔔 Enable Alerts
+                </button>
+              )}
+              {alertsEnabled && (
+                <span className="text-xs flex items-center gap-1" style={{ color: "#22c55e" }}>
+                  🔔 Alerts on
+                </span>
+              )}
+              <DashboardPrefs enabled={prefs} onChange={setPrefs} />
               <Link href="/goout" className="btn-ghost text-sm flex items-center gap-2">
                 🤔 Go Out?
               </Link>
@@ -201,6 +267,13 @@ function DashboardContent() {
         </div>
       </section>
 
+      {/* Events Surge */}
+      <section className="px-4 pb-4">
+        <div className="max-w-6xl mx-auto">
+          <EventsSurgePanel city={city} />
+        </div>
+      </section>
+
       {/* Quick Access */}
       <section className="px-4 pb-16">
         <div className="max-w-6xl mx-auto">
@@ -208,11 +281,11 @@ function DashboardContent() {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
 
             {/* ── Parking ── */}
+            {prefs.has("parking") && (
             <Link href={`/parking?city=${encodeURIComponent(city)}`}
               className="card p-5 flex flex-col gap-3 group cursor-pointer explore-parking" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                 style={{ background: "#3b82f615", color: "#3b82f6" }}>🅿</div>
-              {/* Parking spot mini-grid */}
               <div className="grid gap-1" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
                 {(["#22c55e","#22c55e","#22c55e","#22c55e",
                    "#22c55e","#f59e0b","#f59e0b","#22c55e",
@@ -225,17 +298,16 @@ function DashboardContent() {
                 <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Parking</p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Find available spots, predict occupancy, get recommendations</p>
               </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#3b82f6" }}>
-                Explore <span>→</span>
-              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#3b82f6" }}>Explore <span>→</span></div>
             </Link>
+            )}
 
             {/* ── EV Charging ── */}
+            {prefs.has("ev") && (
             <Link href={`/ev?city=${encodeURIComponent(city)}`}
               className="card p-5 flex flex-col gap-3 group cursor-pointer explore-ev" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                 style={{ background: "#f59e0b15", color: "#f59e0b" }}>⚡</div>
-              {/* Animated battery */}
               <div className="flex items-center gap-2">
                 <div style={{ flex: 1, height: 14, border: "1.5px solid rgba(245,158,11,0.35)", borderRadius: 3, padding: 2, background: "rgba(245,158,11,0.04)" }}>
                   <div className="ev-charge-bar" style={{ height: "100%", width: "10%", background: "linear-gradient(90deg,#f59e0b,#fbbf24)", borderRadius: 2 }} />
@@ -247,17 +319,16 @@ function DashboardContent() {
                 <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>EV Charging</p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Check station availability, wait times, best charging options</p>
               </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#f59e0b" }}>
-                Explore <span>→</span>
-              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#f59e0b" }}>Explore <span>→</span></div>
             </Link>
+            )}
 
             {/* ── Transit ── */}
+            {prefs.has("transit") && (
             <Link href={`/transit?city=${encodeURIComponent(city)}`}
               className="card p-5 flex flex-col gap-3 group cursor-pointer explore-transit" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                 style={{ background: "#22c55e15", color: "#22c55e" }}>🚇</div>
-              {/* Animated track + train */}
               <div style={{ position: "relative", height: 24, overflow: "hidden" }}>
                 <div style={{ position: "absolute", top: "50%", left: 0, right: 0, height: 1.5, background: "rgba(34,197,94,0.2)", transform: "translateY(-50%)" }} />
                 {[0,1,2,3].map(i => (
@@ -275,17 +346,16 @@ function DashboardContent() {
                 <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Transit</p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Live crowd levels, delays, optimal departure times</p>
               </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#22c55e" }}>
-                Explore <span>→</span>
-              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#22c55e" }}>Explore <span>→</span></div>
             </Link>
+            )}
 
             {/* ── Local Services ── */}
+            {prefs.has("services") && (
             <Link href={`/services?city=${encodeURIComponent(city)}`}
               className="card p-5 flex flex-col gap-3 group cursor-pointer explore-services" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
                 style={{ background: "#a855f715", color: "#a855f7" }}>🏛</div>
-              {/* Service icons that burst outward */}
               <div style={{ position: "relative", height: 30 }}>
                 {([
                   { icon: "🏥", tx: "-22px", ty: "-10px", d: "0s" },
@@ -304,12 +374,12 @@ function DashboardContent() {
                 <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Local Services</p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>DMV, hospitals, banks — predicted wait times</p>
               </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#a855f7" }}>
-                Explore <span>→</span>
-              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#a855f7" }}>Explore <span>→</span></div>
             </Link>
+            )}
 
             {/* ── Air Quality ── */}
+            {prefs.has("air") && (
             <Link href={`/air?city=${encodeURIComponent(city)}`}
               className="card p-5 flex flex-col gap-3 group cursor-pointer explore-air" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
@@ -324,12 +394,12 @@ function DashboardContent() {
                 <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Air Quality</p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>AQI, PM2.5, pollen, UV index — real-time monitoring</p>
               </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#06b6d4" }}>
-                Explore <span>→</span>
-              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#06b6d4" }}>Explore <span>→</span></div>
             </Link>
+            )}
 
             {/* ── Bikes & Scooters ── */}
+            {prefs.has("bikes") && (
             <Link href={`/bikes?city=${encodeURIComponent(city)}`}
               className="card p-5 flex flex-col gap-3 group cursor-pointer explore-bikes" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
@@ -345,12 +415,12 @@ function DashboardContent() {
                 <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Bikes & Scooters</p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Live dock availability, e-bikes, AI station recommendations</p>
               </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#10b981" }}>
-                Explore <span>→</span>
-              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#10b981" }}>Explore <span>→</span></div>
             </Link>
+            )}
 
             {/* ── Food Trucks ── */}
+            {prefs.has("food_trucks") && (
             <Link href={`/food-trucks?city=${encodeURIComponent(city)}`}
               className="card p-5 flex flex-col gap-3 group cursor-pointer explore-food" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
@@ -364,12 +434,12 @@ function DashboardContent() {
                 <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Food Trucks</p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Open trucks, crowd levels, wait times by cuisine</p>
               </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#f97316" }}>
-                Explore <span>→</span>
-              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#f97316" }}>Explore <span>→</span></div>
             </Link>
+            )}
 
             {/* ── Noise & Vibe ── */}
+            {prefs.has("noise") && (
             <Link href={`/noise?city=${encodeURIComponent(city)}`}
               className="card p-5 flex flex-col gap-3 group cursor-pointer explore-noise" style={{ transition: "border-color 0.2s, box-shadow 0.2s" }}>
               <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
@@ -384,10 +454,9 @@ function DashboardContent() {
                 <p className="font-semibold text-sm" style={{ color: "var(--text)" }}>Noise & Vibe</p>
                 <p className="text-xs mt-1 leading-relaxed" style={{ color: "var(--muted)" }}>Neighborhood energy, crowd density, night scene activity</p>
               </div>
-              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#ec4899" }}>
-                Explore <span>→</span>
-              </div>
+              <div className="text-xs font-medium flex items-center gap-1 group-hover:gap-2 transition-all" style={{ color: "#ec4899" }}>Explore <span>→</span></div>
             </Link>
+            )}
 
           </div>
 

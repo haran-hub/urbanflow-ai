@@ -24,6 +24,7 @@ from app.models import (
     BikeStation, BikeSnapshot,
     FoodTruck, FoodTruckSnapshot,
     NoiseZone, NoiseSnapshot,
+    EmailSubscriber,
 )
 from app.data_engine import (
     generate_parking_occupancy, generate_ev_wait,
@@ -376,6 +377,69 @@ async def _update_snapshots():
     logger.info(f"Snapshots updated at {now.isoformat()}")
 
 
+async def _send_daily_briefings():
+    """Daily 7am job: fetch AI briefing for each city and email subscribers via Resend."""
+    if not settings.resend_api_key:
+        return
+
+    try:
+        import resend
+        resend.api_key = settings.resend_api_key
+    except ImportError:
+        logger.warning("resend package not installed — skipping daily briefings")
+        return
+
+    cities = ["San Francisco", "New York", "Austin"]
+    for city in cities:
+        # Fetch briefing by calling the local API
+        briefing_text = ""
+        try:
+            async with httpx.AsyncClient(timeout=30.0) as client:
+                resp = await client.get(
+                    "http://localhost:8000/api/briefing/today",
+                    params={"city": city},
+                )
+                resp.raise_for_status()
+                data = resp.json()
+                briefing_text = data.get("briefing", "")
+        except Exception as e:
+            logger.warning(f"Briefing fetch failed for {city}: {e}")
+            briefing_text = f"Morning update for {city} — visit urbanflow-ai.com for live city intelligence."
+
+        async with AsyncSessionLocal() as db:
+            subscribers = (
+                await db.execute(
+                    select(EmailSubscriber).where(EmailSubscriber.city == city)
+                )
+            ).scalars().all()
+
+        for sub in subscribers:
+            unsubscribe_url = (
+                f"https://urbanflow-ai.onrender.com/api/subscribe/unsubscribe"
+                f"?token={sub.unsubscribe_token}"
+            )
+            html_body = f"""
+<div style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px">
+<h2 style="color:#3b82f6">UrbanFlow AI — {city} Morning Brief</h2>
+<div style="background:#f8fafc;border-radius:12px;padding:20px;white-space:pre-wrap;color:#1e293b">{briefing_text}</div>
+<hr style="margin:24px 0;border-color:#e2e8f0">
+<p style="color:#94a3b8;font-size:12px">
+  <a href="{unsubscribe_url}" style="color:#94a3b8">Unsubscribe</a> · UrbanFlow AI
+</p>
+</div>"""
+            try:
+                resend.Emails.send({
+                    "from": "UrbanFlow AI <brief@urbanflow-ai.com>",
+                    "to": sub.email,
+                    "subject": f"Your {city} Morning Brief",
+                    "html": html_body,
+                })
+            except Exception as e:
+                logger.warning(f"Email send failed to {sub.email}: {e}")
+
+    logger.info("Daily briefings sent")
+
+
 def start_scheduler():
     scheduler.add_job(
         _update_snapshots,
@@ -384,6 +448,14 @@ def start_scheduler():
         id="snapshot_update",
         replace_existing=True,
         next_run_time=datetime.utcnow(),  # run immediately on startup
+    )
+    scheduler.add_job(
+        _send_daily_briefings,
+        "cron",
+        hour=7,
+        minute=0,
+        id="daily_briefings",
+        replace_existing=True,
     )
     scheduler.start()
     logger.info(f"Scheduler started (interval: {settings.snapshot_interval_minutes} min)")

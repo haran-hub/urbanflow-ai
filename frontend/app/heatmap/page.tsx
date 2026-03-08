@@ -8,6 +8,7 @@ import { getParkingZones, getEVStations, getNoiseZones, getFoodTrucks, getBikeSt
 import type { ParkingZone, EVStation, NoiseZone, FoodTruck, BikeStation } from "@/lib/types";
 
 const HeatmapMap = dynamic(() => import("./HeatmapMap"), { ssr: false });
+const HeatmapMap3D = dynamic(() => import("./HeatmapMap3D"), { ssr: false });
 
 const LAYERS = [
   { key: "parking",     label: "Parking",     icon: "🅿",  desc: "Occupancy — blue→red" },
@@ -15,6 +16,12 @@ const LAYERS = [
   { key: "noise",       label: "Noise & Vibe",icon: "🎵",  desc: "Vibe score — large halos" },
   { key: "food_trucks", label: "Food Trucks", icon: "🚚",  desc: "Open=orange · Closed=outline" },
   { key: "bikes",       label: "Bikes",       icon: "🚲",  desc: "Availability — green→red" },
+];
+
+const LAYERS_3D = [
+  { key: "parking" as const, label: "Parking",     icon: "🅿",  desc: "Hexagonal occupancy density" },
+  { key: "ev"      as const, label: "EV Charging", icon: "⚡",  desc: "Hexagonal EV demand density" },
+  { key: "bikes"   as const, label: "Bikes",       icon: "🚲",  desc: "Hexagonal bike demand density" },
 ];
 
 function HeatmapContent() {
@@ -27,6 +34,8 @@ function HeatmapContent() {
   const [food, setFood] = useState<FoodTruck[]>([]);
   const [bikes, setBikes] = useState<BikeStation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [mode3D, setMode3D] = useState(false);
+  const [active3DLayer, setActive3DLayer] = useState<"parking" | "ev" | "bikes">("parking");
 
   useEffect(() => {
     let cancelled = false;
@@ -62,53 +71,109 @@ function HeatmapContent() {
       <Header city={city} onCityChange={setCity} />
 
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <div className="mb-5">
-          <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>
-            🗺 <span style={{ color: "var(--accent)" }}>Neighborhood</span> Heat Map
-          </h1>
-          <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
-            All 5 city layers on one interactive map — toggle to focus
-          </p>
+        <div className="flex items-start justify-between mb-5">
+          <div>
+            <h1 className="text-2xl font-bold" style={{ color: "var(--text)" }}>
+              🗺 <span style={{ color: "var(--accent)" }}>Neighborhood</span> Heat Map
+            </h1>
+            <p className="text-sm mt-1" style={{ color: "var(--muted)" }}>
+              {mode3D ? "3D hexagonal density columns — rotate & tilt with right-click drag" : "All 5 city layers on one interactive map — toggle to focus"}
+            </p>
+          </div>
+          {/* 2D/3D toggle */}
+          <div className="flex rounded-xl overflow-hidden shrink-0" style={{ border: "1px solid var(--border)" }}>
+            <button
+              onClick={() => setMode3D(false)}
+              className="px-4 py-2 text-xs font-semibold transition-all"
+              style={{
+                background: !mode3D ? "var(--accent)" : "var(--card)",
+                color: !mode3D ? "#fff" : "var(--muted)",
+              }}
+            >
+              2D Map
+            </button>
+            <button
+              onClick={() => setMode3D(true)}
+              className="px-4 py-2 text-xs font-semibold transition-all"
+              style={{
+                background: mode3D ? "var(--accent)" : "var(--card)",
+                color: mode3D ? "#fff" : "var(--muted)",
+              }}
+            >
+              3D Hex ✦
+            </button>
+          </div>
         </div>
 
         {/* Layer toggles */}
-        <div className="flex flex-wrap gap-2 mb-5">
-          {LAYERS.map((l) => {
-            const active = activeLayers.has(l.key);
-            return (
-              <button key={l.key} onClick={() => toggleLayer(l.key)}
-                className="flex items-center gap-2 text-xs px-3 py-2 rounded-full transition-all"
-                style={{
-                  background: active ? "rgba(59,130,246,0.15)" : "var(--card)",
-                  border: `1px solid ${active ? "rgba(59,130,246,0.4)" : "var(--border)"}`,
-                  color: active ? "var(--accent)" : "var(--muted)",
-                }}>
-                <span>{l.icon}</span>
-                <span>{l.label}</span>
-              </button>
-            );
-          })}
-        </div>
+        {!mode3D ? (
+          <div className="flex flex-wrap gap-2 mb-5">
+            {LAYERS.map((l) => {
+              const active = activeLayers.has(l.key);
+              return (
+                <button key={l.key} onClick={() => toggleLayer(l.key)}
+                  className="flex items-center gap-2 text-xs px-3 py-2 rounded-full transition-all"
+                  style={{
+                    background: active ? "rgba(59,130,246,0.15)" : "var(--card)",
+                    border: `1px solid ${active ? "rgba(59,130,246,0.4)" : "var(--border)"}`,
+                    color: active ? "var(--accent)" : "var(--muted)",
+                  }}>
+                  <span>{l.icon}</span>
+                  <span>{l.label}</span>
+                </button>
+              );
+            })}
+          </div>
+        ) : (
+          <div className="flex flex-wrap gap-2 mb-5">
+            {LAYERS_3D.map((l) => {
+              const active = active3DLayer === l.key;
+              return (
+                <button key={l.key} onClick={() => setActive3DLayer(l.key)}
+                  className="flex items-center gap-2 text-xs px-3 py-2 rounded-full transition-all"
+                  style={{
+                    background: active ? "rgba(59,130,246,0.15)" : "var(--card)",
+                    border: `1px solid ${active ? "rgba(59,130,246,0.4)" : "var(--border)"}`,
+                    color: active ? "var(--accent)" : "var(--muted)",
+                  }}>
+                  <span>{l.icon}</span>
+                  <span>{l.label}</span>
+                  <span style={{ color: "var(--muted)", opacity: 0.6 }}>— {l.desc}</span>
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Legend */}
-        <div className="flex flex-wrap gap-4 mb-4">
-          {[
-            { color: "#22c55e", label: "Available / Low" },
-            { color: "#f59e0b", label: "Moderate / Busy" },
-            { color: "#ef4444", label: "Full / Congested" },
-            { color: "#ec4899", label: "Vibe halo" },
-            { color: "#f97316", label: "Food truck open" },
-          ].map((l) => (
-            <div key={l.label} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
-              <span style={{ width: 10, height: 10, borderRadius: "50%", background: l.color, display: "inline-block" }} />
-              {l.label}
-            </div>
-          ))}
-        </div>
+        {!mode3D && (
+          <div className="flex flex-wrap gap-4 mb-4">
+            {[
+              { color: "#22c55e", label: "Available / Low" },
+              { color: "#f59e0b", label: "Moderate / Busy" },
+              { color: "#ef4444", label: "Full / Congested" },
+              { color: "#ec4899", label: "Vibe halo" },
+              { color: "#f97316", label: "Food truck open" },
+            ].map((l) => (
+              <div key={l.label} className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
+                <span style={{ width: 10, height: 10, borderRadius: "50%", background: l.color, display: "inline-block" }} />
+                {l.label}
+              </div>
+            ))}
+          </div>
+        )}
 
         {/* Map */}
         {loading ? (
           <div className="rounded-2xl animate-pulse" style={{ height: 600, background: "var(--card2)", border: "1px solid var(--border)" }} />
+        ) : mode3D ? (
+          <HeatmapMap3D
+            city={city}
+            category={active3DLayer}
+            parking={parking}
+            ev={ev}
+            bikes={bikes}
+          />
         ) : (
           <HeatmapMap
             city={city}

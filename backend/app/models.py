@@ -265,3 +265,28 @@ class NoiseSnapshot(Base):
     vibe_label: Mapped[str] = mapped_column(String, default="Quiet")  # Quiet/Calm/Lively/Buzzing/Wild
 
     zone: Mapped["NoiseZone"] = relationship(back_populates="snapshots")
+
+
+# ── Community & Subscriber Models ──────────────────────────────────────────────
+
+class CommunityReport(Base):
+    __tablename__ = "community_reports"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    city: Mapped[str] = mapped_column(String, index=True)
+    lat: Mapped[float] = mapped_column(Float)
+    lng: Mapped[float] = mapped_column(Float)
+    type: Mapped[str] = mapped_column(String)        # parking | ev | transit | general
+    description: Mapped[str] = mapped_column(String(280))
+    upvotes: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class EmailSubscriber(Base):
+    __tablename__ = "email_subscribers"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String, unique=True, index=True)
+    city: Mapped[str] = mapped_column(String, default="San Francisco")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    unsubscribe_token: Mapped[str] = mapped_column(String, unique=True, default=new_uuid)

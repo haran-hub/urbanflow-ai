@@ -42,6 +42,8 @@ const NAV_GROUPS = [
       { href: "/delta",         label: "What Changed",      icon: "📊" },
       { href: "/goout",         label: "Go Out Tonight?",   icon: "🤔" },
       { href: "/trip",          label: "Trip Cost",         icon: "💸" },
+      { href: "/reports",       label: "Community Reports", icon: "📍" },
+      { href: "/embed/code",    label: "Embed Widget",      icon: "⬡" },
     ],
   },
 ];

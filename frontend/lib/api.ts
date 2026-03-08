@@ -209,6 +209,43 @@ export async function getMiniTrends(city: string): Promise<{
   return data;
 }
 
+// Events (Ticketmaster)
+export async function getEvents(city: string): Promise<{
+  events: { name: string; venue: string; date: string; time: string; url: string; impact: string; genre: string }[];
+  city: string;
+  note?: string;
+}> {
+  const { data } = await api.get("/api/events", { params: { city } });
+  return data;
+}
+
+// Community Reports
+export async function getReports(city: string): Promise<{
+  reports: { id: number; city: string; lat: number; lng: number; type: string; description: string; upvotes: number; created_at: string }[];
+  city: string;
+}> {
+  const { data } = await api.get("/api/reports", { params: { city } });
+  return data;
+}
+
+export async function submitReport(payload: {
+  city: string; lat: number; lng: number; type: string; description: string;
+}): Promise<{ id: number; success: boolean }> {
+  const { data } = await api.post("/api/reports", payload);
+  return data;
+}
+
+export async function upvoteReport(id: number): Promise<{ id: number; upvotes: number }> {
+  const { data } = await api.post(`/api/reports/${id}/upvote`);
+  return data;
+}
+
+// Email Subscribe
+export async function subscribeEmail(email: string, city: string): Promise<{ success: boolean; message: string }> {
+  const { data } = await api.post("/api/subscribe", { email, city });
+  return data;
+}
+
 // Trip Cost Estimator
 export async function estimateTripCost(payload: {
   city: string;
