@@ -23,6 +23,18 @@ CITY_TIMEZONES = {
 }
 
 
+def _next_good_hour(hour: int) -> str:
+    """Return a human-readable 'after X pm' string 2 hours from now."""
+    target = hour + 2
+    if target >= 24:
+        return "Early tomorrow morning looks ideal"
+    suffix = "am" if target < 12 else "pm"
+    display = target if target <= 12 else target - 12
+    if display == 0:
+        display = 12
+    return f"After {display} {suffix} looks smoother"
+
+
 @router.get("/tonight")
 async def get_goout(city: str = "San Francisco", db: AsyncSession = Depends(get_db)):
     now = time.time()
@@ -99,7 +111,7 @@ Return ONLY valid JSON (no extra text):
                 f"Peak conditions detected in {city}. Parking is scarce and "
                 "transit is crowded. Consider waiting 1–2 hours."
             )
-            best_time = "After 8 pm looks smoother"
+            best_time = _next_good_hour(hour)
         elif hour < 9 or hour > 22:
             verdict, score = "yes", 88
             reason = (
