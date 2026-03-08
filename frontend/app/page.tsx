@@ -70,6 +70,13 @@ const AI_FEATURES = [
     color: "#818cf8",
     href: "/dashboard",
   },
+  {
+    icon: "🎟",
+    label: "Event Surge Prediction",
+    desc: "Upcoming concerts, sports games, and festivals with HIGH/MED/LOW crowd surge impact badges — plan ahead.",
+    color: "#f43f5e",
+    href: "/dashboard",
+  },
 ];
 
 const TOOLS = [
@@ -83,7 +90,7 @@ const TOOLS = [
   {
     icon: "🗺",
     label: "Heat Map",
-    desc: "Multi-layer live map — overlay parking, EV, transit, air quality, and noise data on an interactive city map.",
+    desc: "Multi-layer live map with 3D deck.gl HexagonLayer — overlay parking, EV, and bike density as extruded 3D columns.",
     color: "#22c55e",
     href: "/heatmap",
   },
@@ -114,6 +121,20 @@ const TOOLS = [
     desc: "Pick activities and duration — get a cost breakdown with AI-powered savings tips based on live city conditions.",
     color: "#ec4899",
     href: "/trip",
+  },
+  {
+    icon: "📍",
+    label: "Community Reports",
+    desc: "Crowdsourced city pins — broken EV chargers, parking lot closures, road incidents. Pin & upvote in real time.",
+    color: "#ef4444",
+    href: "/reports",
+  },
+  {
+    icon: "⬡",
+    label: "Embeddable Widget",
+    desc: "Clean iframe-able live stats widget for any website. Generate embed code for parking, EV, or transit data.",
+    color: "#6366f1",
+    href: "/embed/code",
   },
 ];
 
@@ -203,7 +224,7 @@ export default function LandingPage() {
         </h1>
 
         <p style={{ fontSize: "clamp(16px, 2vw, 20px)", color: "#94a3b8", textAlign: "center", maxWidth: 700, lineHeight: 1.7, marginBottom: 48 }}>
-          Real-time data across 8 urban domains — parking, transit, EV, air quality, bikes, food trucks, noise & vibe. 8 AI features. 6 smart tools. Weather-aware theme. All powered by Claude AI.
+          Real-time data across 8 urban domains — parking, transit, EV, air quality, bikes, food trucks, noise & vibe. 9 AI features. 8 smart tools. Voice concierge. 3D heatmap. Weather-aware theme.
         </p>
 
         {/* CTAs */}
@@ -249,7 +270,7 @@ export default function LandingPage() {
           {[
             { n: 8,    suffix: " domains",    label: "Urban domains tracked" },
             { n: 3,    suffix: " cities",     label: "Cities covered live" },
-            { n: 22,   suffix: " pages",      label: "Features & tools" },
+            { n: 26,   suffix: " pages",      label: "Features & tools" },
             { n: 510,  suffix: "+",           label: "Real locations seeded" },
           ].map((s) => (
             <div key={s.label}>
@@ -299,7 +320,7 @@ export default function LandingPage() {
       <section style={{ padding: "80px 24px", background: "rgba(255,255,255,0.015)", borderTop: "1px solid rgba(255,255,255,0.05)" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <p style={{ fontSize: 13, color: "#a78bfa", fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>8 AI Features</p>
+            <p style={{ fontSize: 13, color: "#a78bfa", fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>9 AI Features</p>
             <h2 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, lineHeight: 1.2 }}>
               Not just data —{" "}
               <span style={{ background: "linear-gradient(135deg,#a78bfa,#ec4899)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", backgroundClip: "text" }}>intelligence</span>
@@ -331,7 +352,7 @@ export default function LandingPage() {
       <section style={{ padding: "80px 24px" }}>
         <div style={{ maxWidth: 1100, margin: "0 auto" }}>
           <div style={{ textAlign: "center", marginBottom: 64 }}>
-            <p style={{ fontSize: 13, color: "#06b6d4", fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>6 Smart Tools</p>
+            <p style={{ fontSize: 13, color: "#06b6d4", fontWeight: 600, letterSpacing: 2, textTransform: "uppercase", marginBottom: 12 }}>8 Smart Tools</p>
             <h2 style={{ fontSize: "clamp(28px, 5vw, 48px)", fontWeight: 800, lineHeight: 1.2 }}>
               Explore, compare,{" "}
               <span style={{ color: "#06b6d4" }}>decide</span>

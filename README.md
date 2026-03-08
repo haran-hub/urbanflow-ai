@@ -18,30 +18,35 @@ AI-powered smart city navigation — real-time data across 8 urban domains for S
 - **Food Trucks** — open/closed status, wait times, crowd levels by cuisine; weather impact card
 - **Noise & Vibe** — neighborhood energy, crowd density, night scene activity; weather impact card
 
-### 8 AI Features
-- **◎ City Pulse Score** — composite 0–100 livability index from all 8 domains, weighted by impact
-- **💬 AI City Concierge** — multi-turn Claude chat with live entity-level data (real names, addresses, numbers)
+### 9 AI Features
+- **◎ City Pulse Score** — composite 0–100 livability index from all 8 domains, weighted by impact; animated SVG ring with count-up on the dashboard
+- **💬 AI City Concierge** — multi-turn Claude chat with live entity-level data; **voice input** (Web Speech API) + **text-to-speech** responses
 - **🤔 Go Out Tonight?** — AI reads live parking, transit, air, and vibe then gives a yes/no verdict with score and best time window
 - **⚡ Surge Predictor** — AI early warnings for emerging congestion with cross-domain causality chains
 - **✦ AI Urban Planner** — Claude-powered multi-modal urban travel plan across all domains
-- **☀ Daily City Briefing** — AI-generated city status summary refreshed throughout the day
+- **☀ Daily City Briefing** — AI-generated city status summary refreshed throughout the day + optional morning email subscription via Resend
 - **⏱ Moment Planner** — finds the optimal time window for any activity based on live city conditions
 - **◎ City Narrative** — bullet-point AI mood story for the city's current state, updated every 5 min
+- **🎟 Event Surge Prediction** — upcoming concerts, sports games, and festivals via Ticketmaster Discovery API with HIGH/MED/LOW crowd impact badges
 
-### 6 Smart Tools
+### 8 Smart Tools
 - **⚖ City Compare** — SF vs New York vs Austin head-to-head across 9 live metrics + Relocate Score by persona
-- **🗺 Heat Map** — multi-layer live map showing parking, EV, transit, air, and noise overlaid on the city
+- **🗺 3D Heat Map** — deck.gl `HexagonLayer` showing parking/EV/bike density as extruded 3D hexagonal columns; toggle between 2D and 3D views
 - **🔔 Personal Watchlist** — set custom thresholds on any metric; get instant browser push notifications
 - **⬡ Neighborhood Report Cards** — live A–F grades for every district + **Find My Scene** quiz
 - **📊 What Changed Today** — track how city metrics shifted since earlier today; improved vs worsened at a glance
 - **💸 Trip Cost Estimator** — pick activities and duration, get a cost breakdown with AI savings tips
+- **📍 Community Reports** — crowdsourced city pins (broken EV chargers, lot closures, road incidents); click map to pin, upvote reports
+- **⬡ Embeddable Widget** — clean iframe-able live stats page at `/embed?city=&type=`; embed code generator at `/embed/code`
 
-### 5 Engagement Features
+### 7 Engagement Features
 - **📡 Live Activity Ticker** — scrolling real-time banner on the dashboard broadcasting city metric changes in color-coded text (green = improving, red = worsening)
 - **📊 Popular Times Hourly Bars** — Google Maps-style predicted busyness chart for each hour of today on parking, EV, and transit pages; highlights the current hour in city-local time
 - **📈 Sparklines on Stat Cards** — tiny SVG trend line with gradient fill on every dashboard stat card, powered by the last 2 hours of live snapshot data from the database
-- **⚠️ Anomaly Alerts** — auto-detects when any city metric is ≥15% off its baseline and surfaces a dismissible alert: *"Unusual activity — parking 34% higher than earlier. Possible event nearby."*
-- **🔮 Find My Scene** — 3-question vibe quiz on the Neighborhoods page (mood / transport / setting) that scores all districts against your preferences and recommends the best one with reasons
+- **⚠️ Anomaly Alerts** — auto-detects when any city metric is ≥15% off its baseline and surfaces a dismissible alert
+- **🔮 Find My Scene** — 3-question vibe quiz on the Neighborhoods page (mood / transport / setting) that scores all districts and recommends the best one with reasons
+- **⚙ Personalized Dashboard** — gear icon opens a settings drawer; toggle which of the 8 category sections to show; saved to localStorage
+- **🔔 Browser Push Alerts** — "Enable Alerts" button on dashboard; anomaly notifications for parking >90%, EV wait >30min
 
 ### Platform
 - **Weather-aware theme** — fetches real-world weather every 30 min via Open-Meteo; entire UI palette, gradients, and ambient animations (rain, snow, stars, fog, wind, overcast bands, cloud wisps) change based on 11 live weather conditions
@@ -61,10 +66,10 @@ AI-powered smart city navigation — real-time data across 8 urban domains for S
 
 | Layer | Tech |
 |-------|------|
-| Backend | FastAPI · SQLAlchemy async · SQLite · APScheduler |
+| Backend | FastAPI · SQLAlchemy async · SQLite · APScheduler · Resend (email) |
 | AI | Claude API — concierge, briefing, narrative, moment planner, surge, predictions, planning, go-out, trip cost |
-| Real data | Open Charge Map · Overpass OSM · GBFS · 511.org · ipapi.co · Open-Meteo (weather) |
-| Frontend | Next.js 15 · React 19 · Tailwind CSS · react-leaflet |
+| Real data | Open Charge Map · Overpass OSM · GBFS · 511.org · Ticketmaster Discovery API · ipapi.co · Open-Meteo (weather) |
+| Frontend | Next.js 15 · React 19 · Tailwind CSS · react-leaflet · deck.gl v9 · react-map-gl · MapLibre GL |
 | Deploy | Render (backend + persistent disk) · Vercel (frontend) |
 
 ---
@@ -99,6 +104,9 @@ urbanflow-ai/
 │   │       ├── neighborhoods # Neighborhood Report Cards
 │   │       ├── tripcost     # Trip Cost Estimator (AI tips)
 │   │       ├── trends       # Mini sparkline data — 2h city-wide snapshot history
+│   │       ├── events       # Ticketmaster event surge predictions
+│   │       ├── reports      # Community reports CRUD + upvotes
+│   │       ├── subscribe    # Email subscribe / unsubscribe
 │   │       └── ws           # WebSocket
 │   └── requirements.txt
 ├── frontend/
@@ -109,7 +117,7 @@ urbanflow-ai/
 │   │   ├── parking · ev · transit · services · air · bikes · food-trucks · noise
 │   │   ├── plan/                # AI Urban Planner
 │   │   ├── pulse/               # City Pulse Score
-│   │   ├── concierge/           # AI Concierge chat
+│   │   ├── concierge/           # AI Concierge chat + voice input/TTS
 │   │   ├── compare/             # City Compare + Relocate Score
 │   │   ├── briefing/            # Daily City Briefing
 │   │   ├── moment/              # Moment Planner
@@ -117,7 +125,10 @@ urbanflow-ai/
 │   │   ├── delta/               # What Changed Today
 │   │   ├── neighborhoods/       # Neighborhood Report Cards + Find My Scene quiz
 │   │   ├── trip/                # Trip Cost Estimator
-│   │   ├── heatmap/             # Multi-layer Heat Map (react-leaflet)
+│   │   ├── heatmap/             # 3D Heat Map (deck.gl HexagonLayer + react-leaflet 2D)
+│   │   ├── reports/             # Community Reports map + submit + upvote
+│   │   ├── embed/               # Embeddable live stats widget (iframe-safe)
+│   │   ├── embed/code/          # Embed code generator with copy button
 │   │   └── watchlist/           # Personal Watchlist + push notifications
 │   ├── components/
 │   │   ├── Header.tsx           # Grouped sidebar nav + mobile hamburger + weather badge
@@ -131,6 +142,10 @@ urbanflow-ai/
 │   │   ├── ShareCard.tsx        # City snapshot share card
 │   │   ├── SurgeWidget.tsx      # Surge alerts + causality chains
 │   │   ├── StatCard.tsx         # Stat card with sparkline SVG trend line
+│   │   ├── CityScoreRing.tsx    # Animated SVG progress ring (hero dashboard)
+│   │   ├── DashboardPrefs.tsx   # Section toggle drawer + useDashboardPrefs hook
+│   │   ├── EventsSurgePanel.tsx # Ticketmaster event cards with impact badges
+│   │   ├── EmailSubscribeWidget.tsx # Morning brief email subscribe form
 │   │   └── OccupancyBar · BestTimeModal · Toast · CityMap
 │   ├── hooks/
 │   │   ├── useDetectedCity.ts   # GPS → IP fallback geolocation + manual preference
@@ -191,9 +206,11 @@ npm run dev
 **Required env vars on Render:**
 ```
 ANTHROPIC_API_KEY
-FRONTEND_URL        # your Vercel URL
-OCM_API_KEY         # Open Charge Map (optional but recommended)
-API_511_KEY         # 511.org SF transit (optional)
+FRONTEND_URL          # your Vercel URL
+OCM_API_KEY           # Open Charge Map (optional but recommended)
+API_511_KEY           # 511.org SF transit (optional)
+TICKETMASTER_API_KEY  # Ticketmaster Discovery API — free at developer.ticketmaster.com (optional)
+RESEND_API_KEY        # Resend email — free 100/day at resend.com (optional, for morning briefs)
 ```
 
 ### Vercel (frontend)
@@ -232,8 +249,11 @@ NEXT_PUBLIC_API_URL=https://urbanflow-ai.onrender.com
 | `/delta` | What Changed Today — metric shifts since session start |
 | `/neighborhoods` | Neighborhood Report Cards — A–F grades per district + Find My Scene quiz |
 | `/trip` | Trip Cost Estimator — cost breakdown + AI savings tips |
-| `/heatmap` | Multi-layer Heat Map — parking, EV, transit, air, noise on map |
+| `/heatmap` | 3D Heat Map — deck.gl HexagonLayer (parking/EV/bikes) + 2D react-leaflet toggle |
 | `/watchlist` | Personal Watchlist — custom metric threshold alerts + push notifications |
+| `/reports` | Community Reports — Leaflet map, click to pin report, upvote list |
+| `/embed` | Embeddable widget — clean iframe-safe live stats for any website |
+| `/embed/code` | Embed code generator — pick city + type, copy `<iframe>` snippet |
 
 ---
 
@@ -256,6 +276,12 @@ NEXT_PUBLIC_API_URL=https://urbanflow-ai.onrender.com
 | GET | `/api/neighborhoods/report?city=` | Neighborhood report cards with A–F grades |
 | POST | `/api/tripcost/estimate` | Trip cost breakdown + AI savings tips |
 | GET | `/api/trends/mini?city=` | Sparkline data — last 2h city-wide snapshot averages |
+| GET | `/api/events?city=` | Upcoming events + crowd surge impact (Ticketmaster, 15-min cache) |
+| GET | `/api/reports?city=` | Community reports for city (last 24h) |
+| POST | `/api/reports` | Submit a community report `{city, lat, lng, type, description}` |
+| POST | `/api/reports/{id}/upvote` | Upvote a community report |
+| POST | `/api/subscribe` | Subscribe email to daily briefing `{email, city}` |
+| GET | `/api/subscribe/unsubscribe?token=` | Unsubscribe via token (HTML response) |
 | GET | `/api/parking/zones?city=` | Live parking availability |
 | GET | `/api/ev/stations?city=` | EV port status |
 | GET | `/api/transit/routes?city=` | Transit crowd + delay data |
