@@ -30,7 +30,7 @@ function scoreColor(score: number): string {
 
 export default function CityScoreRing({ score, label, color, size = 120 }: Props) {
   const [displayed, setDisplayed] = useState(0);
-  const animRef = useRef<ReturnType<typeof requestAnimationFrame>>();
+  const animRef = useRef<number | undefined>(undefined);
 
   useEffect(() => {
     if (score === null) return;

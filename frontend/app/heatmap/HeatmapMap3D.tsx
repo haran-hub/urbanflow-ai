@@ -89,7 +89,8 @@ export default function HeatmapMap3D({ city, category, parking, ev, bikes }: Pro
         initialViewState={viewState}
         controller
         layers={[layer]}
-        getTooltip={({ object }: { object?: { points?: Point[]; colorValue?: number; elevationValue?: number } }) =>
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        getTooltip={({ object }: any) =>
           object
             ? {
                 html: `<div style="background:#1e293b;color:#fff;padding:8px 12px;border-radius:8px;font-size:12px">
