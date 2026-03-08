@@ -53,10 +53,9 @@ export default function EventsSurgePanel({ city }: { city: string }) {
           <h3 className="text-sm font-semibold" style={{ color: "var(--text)" }}>Upcoming Events</h3>
         </div>
         <p className="text-xs" style={{ color: "var(--muted)" }}>
-          {note ?? "No upcoming events found for this city."}
-          {note && (
-            <span> Add a <code className="text-xs px-1 rounded" style={{ background: "rgba(255,255,255,0.06)" }}>TICKETMASTER_API_KEY</code> to enable.</span>
-          )}
+          {note
+            ? <>Add a <code className="text-xs px-1 rounded" style={{ background: "rgba(255,255,255,0.06)" }}>TICKETMASTER_API_KEY</code> env var to enable event surge predictions.</>
+            : "No upcoming events found for this city."}
         </p>
       </div>
     );
