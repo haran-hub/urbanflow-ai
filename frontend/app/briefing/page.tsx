@@ -26,7 +26,7 @@ function BriefingContent() {
   usePolling(load, 5 * 60_000); // briefing is AI-generated, refresh every 5 min
 
   return (
-    <main className="min-h-screen pt-14 md:pt-0 md:pl-[220px]" style={{ background: "var(--bg)" }}>
+    <main className="min-h-screen pt-14 md:pt-14 md:pl-[220px]" style={{ background: "var(--bg)" }}>
       <Header city={city} onCityChange={setCity} />
 
       <div className="max-w-3xl mx-auto px-4 py-10">

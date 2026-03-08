@@ -48,9 +48,6 @@ const NAV_GROUPS = [
   },
 ];
 
-// Flat list for mobile
-const NAV_FLAT = NAV_GROUPS.flatMap((g) => g.items);
-
 interface HeaderProps {
   city: string;
   onCityChange: (city: string) => void;
@@ -90,7 +87,6 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
     <>
       {/* ── Mobile top bar ─────────────────────────────────────────────────── */}
       <header className="md:hidden glass fixed top-0 left-0 right-0 z-50 border-b border-[var(--border)]">
-        {/* Gradient accent line */}
         <div style={{ height: 2, background: gradientBar, transition: "background 1.2s ease" }} />
 
         <div className="h-14 px-4 flex items-center justify-between">
@@ -237,54 +233,68 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
             </div>
           ))}
         </nav>
+      </aside>
 
-        {/* City selector + status */}
+      {/* ── Desktop top bar (right of sidebar) ─────────────────────────────── */}
+      <header
+        className="hidden md:flex items-center fixed top-0 left-[220px] right-0 h-14 z-40 px-6 border-b border-[var(--border)]"
+        style={{ background: "rgba(8,8,14,0.95)", backdropFilter: "blur(16px)" }}
+      >
+        {/* Gradient accent line */}
         <div
-          className="px-4 py-4 flex flex-col gap-3"
-          style={{ borderTop: "1px solid var(--border)", flexShrink: 0 }}
-        >
+          style={{
+            position: "absolute",
+            top: 0,
+            left: 0,
+            right: 0,
+            height: 2,
+            background: gradientBar,
+            transition: "background 1.2s ease",
+          }}
+        />
+
+        {/* Left: live status */}
+        <div className="flex-1">
           {liveStatus && (
             <div className="flex items-center gap-1.5 text-xs" style={{ color: "var(--muted)" }}>
               <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse shrink-0" />
               {liveStatus}
             </div>
           )}
-          <div>
-            <label
-              className="text-[9px] font-black tracking-[0.12em] mb-1.5 block flex items-center gap-1"
-              style={{ color: "var(--muted)", opacity: 0.5 }}
+        </div>
+
+        {/* Right: weather badge + city selector */}
+        <div className="flex items-center gap-3">
+          {weather && (
+            <div
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg text-xs"
+              style={{ background: "rgba(255,255,255,0.04)", border: "1px solid var(--border)" }}
             >
-              📍 ACTIVE CITY
-            </label>
+              <span style={{ fontSize: 15 }}>{weather.icon}</span>
+              <span style={{ color: "var(--muted)" }}>{weather.description}</span>
+              <span className="font-semibold" style={{ color: "var(--accent)" }}>
+                {Math.round(weather.temp_c * 9 / 5 + 32)}°F
+              </span>
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <span className="text-[10px] font-bold tracking-widest" style={{ color: "var(--muted)", opacity: 0.45 }}>📍</span>
             <select
               value={city}
               onChange={(e) => onCityChange(e.target.value)}
-              className="text-xs w-full px-3 py-2 rounded-lg"
+              className="text-xs px-3 py-1.5 rounded-lg"
               style={{
                 background: "var(--card2)",
                 border: "1px solid var(--border)",
                 color: "var(--text)",
+                minWidth: 130,
               }}
             >
               {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
             </select>
           </div>
-
-          {/* Weather badge */}
-          {weather && (
-            <div
-              className="flex items-center gap-2 px-2 py-1.5 rounded-lg text-[11px]"
-              style={{ background: "rgba(255,255,255,0.03)", border: "1px solid var(--border)" }}
-            >
-              <span style={{ fontSize: 14 }}>{weather.icon}</span>
-              <span style={{ color: "var(--muted)" }}>{weather.description}</span>
-              <span className="ml-auto font-semibold" style={{ color: "var(--accent)" }}>
-                {Math.round(weather.temp_c * 9 / 5 + 32)}°F
-              </span>
-            </div>
-          )}
         </div>
-      </aside>
+      </header>
 
       {/* Weather particle overlay */}
       {weather && theme && (

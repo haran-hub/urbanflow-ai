@@ -163,7 +163,7 @@ function WatchlistContent() {
   const otherItems = items.filter((i) => i.city !== city);
 
   return (
-    <main className="min-h-screen pt-14 md:pt-0 md:pl-[220px]" style={{ background: "var(--bg)" }}>
+    <main className="min-h-screen pt-14 md:pt-14 md:pl-[220px]" style={{ background: "var(--bg)" }}>
       <Header city={city} onCityChange={setCity} />
 
       <div className="max-w-3xl mx-auto px-4 py-10">
