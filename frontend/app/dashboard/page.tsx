@@ -16,7 +16,6 @@ import { useWebSocket } from "@/hooks/useWebSocket";
 import { useDetectedCity } from "@/hooks/useDetectedCity";
 import { usePolling } from "@/hooks/usePolling";
 import type { DashboardOverview, PulseScore } from "@/lib/types";
-import LiveTicker from "@/components/LiveTicker";
 import AnomalyAlert from "@/components/AnomalyAlert";
 
 const RUSH_COLOR: Record<string, string> = {
@@ -111,7 +110,6 @@ function DashboardContent() {
   return (
     <main className="min-h-screen pt-14 md:pt-[82px] md:pl-[220px]" style={{ background: "var(--bg)" }}>
       <Header city={city} onCityChange={setCity} liveStatus="Live · refreshes on every visit" />
-      <LiveTicker city={city} />
 
       {/* Hero */}
       <section className="pt-12 pb-8 px-4">
