@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useWeatherTheme } from "@/hooks/useWeatherTheme";
 import WeatherBackground from "@/components/WeatherBackground";
 
@@ -61,6 +61,14 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
   const pathname = usePathname();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { weather, theme } = useWeatherTheme(city);
+  const navRef = useRef<HTMLElement>(null);
+
+  // Scroll active nav item into view whenever route changes
+  useEffect(() => {
+    if (!navRef.current) return;
+    const active = navRef.current.querySelector("[data-active='true']");
+    if (active) active.scrollIntoView({ block: "nearest", behavior: "smooth" });
+  }, [pathname]);
 
   // Apply weather-based CSS variables globally
   useEffect(() => {
@@ -191,7 +199,7 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
         </div>
 
         {/* Nav groups */}
-        <nav className="flex-1 px-3 py-3 flex flex-col overflow-y-auto" style={{ gap: 0 }}>
+        <nav ref={navRef} className="flex-1 px-3 py-3 flex flex-col overflow-y-auto" style={{ gap: 0 }}>
           {NAV_GROUPS.map((group) => (
             <div key={group.label} className="mb-3">
               <p
@@ -207,6 +215,7 @@ export default function Header({ city, onCityChange, liveStatus }: HeaderProps) 
                   <Link
                     key={n.href}
                     href={href}
+                    data-active={active ? "true" : undefined}
                     className="flex items-center gap-3 px-3 py-2 rounded-xl text-sm font-medium transition-all mb-0.5 group"
                     style={{
                       color: active ? "white" : "var(--muted)",
