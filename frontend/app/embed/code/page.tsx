@@ -1,26 +1,37 @@
 "use client";
-import { useState } from "react";
+import { useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
+import Header from "@/components/Header";
+import { useDetectedCity } from "@/hooks/useDetectedCity";
 
-const CITIES = ["San Francisco", "New York", "Austin"];
 const TYPES = [
-  { value: "parking",  label: "Parking" },
-  { value: "ev",       label: "EV Charging" },
-  { value: "transit",  label: "Transit" },
-  { value: "services", label: "Services" },
-  { value: "pulse",    label: "City Pulse" },
+  { value: "parking",  label: "🅿 Parking",      color: "#3b82f6" },
+  { value: "ev",       label: "⚡ EV Charging",   color: "#f59e0b" },
+  { value: "transit",  label: "🚇 Transit",       color: "#22c55e" },
+  { value: "services", label: "🏛 Services",      color: "#a855f7" },
+  { value: "pulse",    label: "◎ City Pulse",     color: "#818cf8" },
 ];
 
-export default function EmbedCodePage() {
-  const [city, setCity] = useState("San Francisco");
+function EmbedCodeContent() {
+  const params = useSearchParams();
+  const { city, setCity } = useDetectedCity(params.get("city"));
   const [type, setType] = useState("parking");
   const [copied, setCopied] = useState(false);
+  const [size, setSize] = useState<"small" | "medium" | "large">("medium");
+
+  const SIZES = {
+    small:  { w: 260, h: 160, label: "Small" },
+    medium: { w: 320, h: 200, label: "Medium" },
+    large:  { w: 420, h: 240, label: "Large" },
+  };
 
   const baseUrl = typeof window !== "undefined"
     ? window.location.origin
-    : "https://urbanflow-ai.com";
+    : "https://urbanflow-ai.vercel.app";
 
+  const { w, h } = SIZES[size];
   const embedUrl = `${baseUrl}/embed?city=${encodeURIComponent(city)}&type=${type}`;
-  const code = `<iframe\n  src="${embedUrl}"\n  width="320"\n  height="200"\n  frameborder="0"\n  style="border-radius:16px;overflow:hidden"\n  title="UrbanFlow AI — ${city} ${type}"\n></iframe>`;
+  const code = `<iframe\n  src="${embedUrl}"\n  width="${w}"\n  height="${h}"\n  frameborder="0"\n  style="border-radius:16px;overflow:hidden"\n  title="UrbanFlow AI — ${city} ${type}"\n></iframe>`;
 
   async function copyCode() {
     await navigator.clipboard.writeText(code);
@@ -28,105 +39,155 @@ export default function EmbedCodePage() {
     setTimeout(() => setCopied(false), 2000);
   }
 
+  const activeType = TYPES.find((t) => t.value === type)!;
+
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "#0a0a0f",
-      color: "#fff",
-      fontFamily: "system-ui, sans-serif",
-      padding: "40px 24px",
-    }}>
-      <div style={{ maxWidth: 640, margin: "0 auto" }}>
-        <h1 style={{ fontSize: 28, fontWeight: 800, marginBottom: 8 }}>
-          <span style={{ color: "#3b82f6" }}>UrbanFlow AI</span> Embed Generator
-        </h1>
-        <p style={{ color: "rgba(255,255,255,0.45)", marginBottom: 32, fontSize: 14 }}>
-          Embed live city data on any webpage — no API key required.
-        </p>
+    <main className="min-h-screen pt-14 md:pt-0 md:pl-[220px]" style={{ background: "var(--bg)" }}>
+      <Header city={city} onCityChange={setCity} />
 
-        {/* Config */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, marginBottom: 24 }}>
-          <div>
-            <label style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 6 }}>CITY</label>
-            <select
-              value={city}
-              onChange={(e) => setCity(e.target.value)}
-              style={{
-                width: "100%", padding: "10px 12px", borderRadius: 10,
-                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
-                color: "#fff", fontSize: 14,
-              }}
-            >
-              {CITIES.map((c) => <option key={c} value={c}>{c}</option>)}
-            </select>
-          </div>
-          <div>
-            <label style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 6 }}>DATA TYPE</label>
-            <select
-              value={type}
-              onChange={(e) => setType(e.target.value)}
-              style={{
-                width: "100%", padding: "10px 12px", borderRadius: 10,
-                background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.1)",
-                color: "#fff", fontSize: 14,
-              }}
-            >
-              {TYPES.map((t) => <option key={t.value} value={t.value}>{t.label}</option>)}
-            </select>
-          </div>
+      <div className="max-w-3xl mx-auto px-4 py-10">
+        {/* Page header */}
+        <div className="mb-8">
+          <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--text)" }}>
+            ⬡ <span style={{ color: "var(--accent)" }}>Embed</span> Widget Generator
+          </h1>
+          <p className="text-sm" style={{ color: "var(--muted)" }}>
+            Drop live city data into any website — no API key, no login required.
+          </p>
         </div>
 
-        {/* Preview */}
-        <div style={{ marginBottom: 24 }}>
-          <label style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 8 }}>PREVIEW</label>
-          <iframe
-            src={embedUrl}
-            width="320"
-            height="200"
-            frameBorder="0"
-            style={{ borderRadius: 16, overflow: "hidden", display: "block" }}
-            title="Embed Preview"
-          />
-        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-        {/* Code */}
-        <div>
-          <label style={{ fontSize: 12, color: "rgba(255,255,255,0.4)", display: "block", marginBottom: 8 }}>EMBED CODE</label>
-          <div style={{ position: "relative" }}>
-            <pre style={{
-              background: "rgba(255,255,255,0.04)",
-              border: "1px solid rgba(255,255,255,0.08)",
-              borderRadius: 12,
-              padding: "16px 20px",
-              fontSize: 12,
-              color: "rgba(255,255,255,0.75)",
-              overflowX: "auto",
-              lineHeight: 1.6,
-              marginBottom: 0,
-            }}>
-              {code}
-            </pre>
-            <button
-              onClick={copyCode}
-              style={{
-                position: "absolute",
-                top: 12,
-                right: 12,
-                padding: "6px 14px",
-                borderRadius: 8,
-                background: copied ? "rgba(34,197,94,0.2)" : "rgba(59,130,246,0.2)",
-                border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(59,130,246,0.4)"}`,
-                color: copied ? "#22c55e" : "#3b82f6",
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: "pointer",
-              }}
+          {/* Left: Config */}
+          <div className="flex flex-col gap-5">
+
+            {/* Data type */}
+            <div>
+              <label className="text-xs font-semibold tracking-widest block mb-3" style={{ color: "var(--muted)" }}>
+                DATA TYPE
+              </label>
+              <div className="grid grid-cols-1 gap-2">
+                {TYPES.map((t) => (
+                  <button
+                    key={t.value}
+                    onClick={() => setType(t.value)}
+                    className="flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium text-left transition-all"
+                    style={{
+                      background: type === t.value ? `${t.color}18` : "var(--card)",
+                      border: `1px solid ${type === t.value ? t.color + "55" : "var(--border)"}`,
+                      color: type === t.value ? t.color : "var(--muted)",
+                    }}
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ background: type === t.value ? t.color : "var(--border)" }} />
+                    {t.label}
+                    {type === t.value && (
+                      <span className="ml-auto text-xs" style={{ color: t.color }}>selected</span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Size */}
+            <div>
+              <label className="text-xs font-semibold tracking-widest block mb-3" style={{ color: "var(--muted)" }}>
+                SIZE
+              </label>
+              <div className="flex gap-2">
+                {(Object.entries(SIZES) as [typeof size, typeof SIZES[typeof size]][]).map(([key, val]) => (
+                  <button
+                    key={key}
+                    onClick={() => setSize(key)}
+                    className="flex-1 py-2 rounded-xl text-xs font-semibold transition-all"
+                    style={{
+                      background: size === key ? "var(--accent)" : "var(--card)",
+                      border: `1px solid ${size === key ? "var(--accent)" : "var(--border)"}`,
+                      color: size === key ? "#fff" : "var(--muted)",
+                    }}
+                  >
+                    {val.label}
+                    <span className="block text-[10px] mt-0.5 opacity-60">{val.w}×{val.h}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+          </div>
+
+          {/* Right: Preview + code */}
+          <div className="flex flex-col gap-5">
+
+            {/* Live preview */}
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <label className="text-xs font-semibold tracking-widest" style={{ color: "var(--muted)" }}>
+                  LIVE PREVIEW
+                </label>
+                <span className="text-[10px] flex items-center gap-1.5" style={{ color: "#22c55e" }}>
+                  <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse inline-block" />
+                  Real data
+                </span>
+              </div>
+              <div
+                className="rounded-2xl overflow-hidden"
+                style={{ border: "1px solid var(--border)", background: "var(--card2)" }}
+              >
+                <iframe
+                  src={embedUrl}
+                  width="100%"
+                  height={h}
+                  frameBorder="0"
+                  style={{ display: "block" }}
+                  title="Embed Preview"
+                />
+              </div>
+            </div>
+
+            {/* Embed code */}
+            <div>
+              <label className="text-xs font-semibold tracking-widest block mb-3" style={{ color: "var(--muted)" }}>
+                EMBED CODE
+              </label>
+              <div className="relative rounded-xl overflow-hidden" style={{ border: "1px solid var(--border)" }}>
+                <pre
+                  className="text-xs leading-relaxed p-4 pr-20 overflow-x-auto"
+                  style={{ background: "var(--card)", color: "rgba(255,255,255,0.65)", margin: 0 }}
+                >
+                  {code}
+                </pre>
+                <button
+                  onClick={copyCode}
+                  className="absolute top-3 right-3 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+                  style={{
+                    background: copied ? "rgba(34,197,94,0.15)" : "rgba(59,130,246,0.15)",
+                    border: `1px solid ${copied ? "rgba(34,197,94,0.4)" : "rgba(59,130,246,0.4)"}`,
+                    color: copied ? "#22c55e" : "#3b82f6",
+                  }}
+                >
+                  {copied ? "✓ Copied!" : "Copy"}
+                </button>
+              </div>
+            </div>
+
+            {/* Info strip */}
+            <div
+              className="flex items-center gap-3 px-4 py-3 rounded-xl text-xs"
+              style={{ background: "var(--card)", border: "1px solid var(--border)", color: "var(--muted)" }}
             >
-              {copied ? "✓ Copied!" : "Copy"}
-            </button>
+              <span style={{ fontSize: 16 }}>{activeType.label.split(" ")[0]}</span>
+              <div>
+                <span className="font-medium" style={{ color: "var(--text)" }}>{city} · {activeType.label.replace(/^\S+ /, "")}</span>
+                <span className="ml-2">· Updates every 30s · Free · No API key</span>
+              </div>
+            </div>
+
           </div>
         </div>
       </div>
-    </div>
+    </main>
   );
+}
+
+export default function EmbedCodePage() {
+  return <Suspense><EmbedCodeContent /></Suspense>;
 }
